@@ -96,22 +96,27 @@ const Dashboard: React.FC<DashboardProps> = ({
         aria-hidden={!sidebarOpen}
       >
         <div>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-extrabold text-cyan-400 mb-1">
-                ViaMent
-              </h1>
-              <p className="text-sm text-cyan-200/80">
-                Mentor guiding your growth
-              </p>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="hidden md:inline-flex items-center gap-2 rounded-full border border-cyan-500/40 bg-gray-800/70 px-3 py-2 text-sm font-medium text-cyan-100 transition-colors hover:bg-gray-700/70"
-            >
-              <CollapseIcon className="h-8 w-8" />
-              <span>Hide</span>
-            </button>
+          <h1 className="text-2xl font-bold text-cyan-400 mb-2 md:mb-8 text-center md:text-left">ViaMent</h1>
+          <ul className="flex flex-row md:flex-col md:space-y-2 justify-center">
+            {tabs.map((tab) => (
+              <li key={tab.name}>
+                <button
+                  onClick={() => setActiveTab(tab.name)}
+                  className={`flex items-center w-full px-4 py-2 rounded-lg transition-colors duration-200 ${
+                    activeTab === tab.name ? "bg-cyan-600 text-white" : "text-gray-300 hover:bg-gray-700"
+                  }`}
+                >
+                  <tab.icon className="h-5 w-5 mr-3" />
+                  <span className="font-medium">{tab.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-1 text-yellow-400" title={`${xp} XP`}>
+            <StarIcon className="h-7 w-7" />
+            <span className="text-xl font-bold">{xp}</span>
           </div>
 
           <nav className="mt-6">

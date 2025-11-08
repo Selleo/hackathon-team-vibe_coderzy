@@ -9,7 +9,7 @@ export enum StageStatus {
   Completed = "completed",
 }
 
-export type BlockType = "text" | "quiz" | "code" | "mentor";
+export type BlockType = "text" | "quiz" | "code" | "mentor" | "ai-mentor";
 
 export interface BaseBlock {
   type: BlockType;
@@ -62,7 +62,24 @@ export interface MentorBlock extends BaseBlock {
   };
 }
 
-export type LessonBlock = TextBlock | QuizBlock | CodeBlock | MentorBlock;
+export interface AiMentorBlock extends BaseBlock {
+  type: "ai-mentor";
+  mode: "explain" | "quiz";
+  title: string;
+  persona: string;
+  lessonContext: string;
+  prompt: string;
+  topic: string;
+  suggestedQuestions?: string[];
+  quizGoal?: number;
+}
+
+export type LessonBlock =
+  | TextBlock
+  | QuizBlock
+  | CodeBlock
+  | MentorBlock
+  | AiMentorBlock;
 
 export interface Lesson {
   id: string;

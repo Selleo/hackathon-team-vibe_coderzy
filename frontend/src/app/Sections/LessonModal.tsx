@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { getExaminerFeedback } from "../services/mentorService";
+import AiMentorPanel from "./Components/AiMentorPanel";
 import {
   CodeBlock,
   LessonBlock,
@@ -71,6 +72,10 @@ const LessonModal: React.FC<LessonModalProps> = ({ stage, userProfile, onClose, 
             examiner={examinerMentor}
             userProfile={userProfile}
           />
+        );
+      case "ai-mentor":
+        return (
+          <AiMentorPanel block={block} userProfile={userProfile} onContinue={handleNextBlock} />
         );
       default:
         return <div>Unsupported block type.</div>;
