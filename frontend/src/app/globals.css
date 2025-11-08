@@ -56,11 +56,11 @@ body {
 .animate-fade-in {
   animation: fade-in 0.3s ease-in-out;
 }
-@keyframes spin-y {
-  from {
-    transform: rotateY(0deg);
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-100%);
   }
-  to {
-    transform: rotateY(360deg);
+  100% {
+    transform: translateX(200%);
   }
 }

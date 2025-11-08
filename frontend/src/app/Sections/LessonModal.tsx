@@ -35,7 +35,7 @@ const LessonModal: React.FC<LessonModalProps> = ({ stage, userProfile, onClose, 
   }, [stage.lesson.blocks]);
 
   const currentBlock = lessonBlocks[currentBlockIndex];
-  const progress = ((currentBlockIndex + 1) / lessonBlocks.length) * 100;
+  const progress = ((currentBlockIndex) / lessonBlocks.length) * 100 +5;
 
   const handleNextBlock = () => {
     if (currentBlockIndex < lessonBlocks.length - 1) {
@@ -51,7 +51,7 @@ const LessonModal: React.FC<LessonModalProps> = ({ stage, userProfile, onClose, 
       case "text":
         return (
           <div>
-            <h3 className="text-2xl font-bold text-cyan-300 mb-4">{block.title}</h3>
+            <h3 className="text-2xl pb-4 font-bold text-cyan-300 mb-4">{block.title}</h3>
             <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{block.markdown}</p>
             <button
               onClick={handleNextBlock}
@@ -84,19 +84,22 @@ const LessonModal: React.FC<LessonModalProps> = ({ stage, userProfile, onClose, 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl p-8 relative max-h-[90vh] flex flex-col">
-        <div className="w-full bg-gray-700 rounded-full h-2.5 mb-4">
+      <div className="bg-gray-800 rounded-xl  shadow-2xl pt-7 max-w-3xl p-8 relative  flex flex-col">
+
+            <div className=" bg-gray-700 w-7/8 rounded-full h-2.5 mb-4">
           <div
-            className="bg-cyan-500 h-2.5 rounded-full"
+            className="bg-cyan-500 h-2.5  rounded-full "
             style={{ width: `${progress}%`, transition: "width 0.3s ease-in-out" }}
           ></div>
-        </div>
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition z-10">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          </div>
+
+        <button onClick={onClose} className="absolute top-4  right-4 text-gray-400 hover:text-white transition z-10">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <div className="overflow-y-auto pr-2">{renderBlock(currentBlock)}</div>
+
+        <div className="overflow-y-auto my-2 pr-2">{renderBlock(currentBlock)}</div>
       </div>
     </div>
   );

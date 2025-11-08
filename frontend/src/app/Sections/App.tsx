@@ -210,24 +210,14 @@ const App = () => {
   };
 
   const renderLoadingState = (message: string) => (
-    <div className="relative flex items-center justify-center min-h-screen overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-20"
-        aria-hidden
-      >
-        <div
-          className="animate-[spin-y_12s_linear_infinite]"
-          style={{
-            backgroundImage: "url('/logo.svg')",
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "center",
-            backgroundSize: "contain",
-            width: "32rem",
-            height: "32rem",
-          }}
-        />
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-900 px-4">
+  <div className="text-2xl text-white">{message}</div>
+  <p className="text-sm text-gray-400">This might take a moment, thanks for your patience.</p>
+      <div className="w-full max-w-xl">
+        <div className="relative h-3 w-full overflow-hidden rounded-full bg-gray-800">
+          <div className="absolute inset-y-0 left-0 w-1/2 animate-[progress-slide_1.6s_linear_infinite] bg-linear-to-r from-cyan-400 via-blue-500 to-indigo-500" />
+        </div>
       </div>
-      <div className="relative z-10 text-2xl text-white">{message}</div>
     </div>
   );
 

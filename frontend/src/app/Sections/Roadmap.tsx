@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LessonSummary, StageStatus } from "../lib/types";
 
 const LockIcon = ({ className }: { className?: string }) => (
@@ -39,10 +39,12 @@ interface RoadmapProps {
 const RoadmapNode = ({
   stage,
   onSelect,
+  onLockedAttempt,
   index,
 }: {
   stage: LessonSummary;
   onSelect: () => void;
+  onLockedAttempt: () => void;
   index: number;
 }) => {
   const isLocked = stage.status === StageStatus.Locked;
@@ -65,12 +67,21 @@ const RoadmapNode = ({
     [StageStatus.Locked]: <LockIcon className="w-6 h-6" />,
   } as const;
 
+  const handleClick = () => {
+    if (isLocked) {
+      onLockedAttempt();
+      return;
+    }
+    onSelect();
+  };
+
   return (
     <div className="flex flex-col items-center">
       <button
-        onClick={onSelect}
-        disabled={isLocked}
+        type="button"
+        onClick={handleClick}
         aria-label={`Lesson ${index + 1}: ${stage.title}, status: ${stage.status}`}
+        aria-disabled={isLocked}
         className={`flex items-center justify-center w-24 h-24 rounded-full border-8 shadow-lg transition-transform duration-200 ${
           nodeStyles[stage.status]
         } ${!isLocked ? "hover:scale-110" : ""}`}
@@ -83,6 +94,16 @@ const RoadmapNode = ({
 };
 const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!infoMessage) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setInfoMessage(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [infoMessage]);
 
   const topics = stages.reduce((acc, stage) => {
     const topic = stage.lesson.track;
@@ -119,11 +140,22 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
                   stage={stage}
                   index={index}
                   onSelect={() => onStageSelect(stage)}
+                  onLockedAttempt={() =>
+                    setInfoMessage("This lesson unlocks after you complete the previous ones.")
+                  }
                 />
               </div>
             ))}
           </div>
         </div>
+        {infoMessage && (
+          <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border border-cyan-500/40 bg-gray-900/95 p-4 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 h-2 w-2 rounded-full bg-cyan-400" />
+              <div className="text-sm text-gray-200">{infoMessage}</div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -132,12 +164,18 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
     <div className="container mx-auto max-w-3xl animate-fade-in px-4">
       <h1 className="text-5xl font-extrabold mb-10 text-cyan-300 tracking-tight">Your Learning Roadmap</h1>
       <div className="space-y-6">
-        {topicEntries.map(([topic, lessons], topicIndex) => (
+  {topicEntries.map(([topic], topicIndex) => (
           <div key={topic} className="bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
             <button
               className="w-full text-left text-2xl font-bold text-white flex justify-between items-center p-6 bg-gray-700/50 hover:bg-gray-700 transition-colors duration-200"
-              onClick={() => setSelectedTopic(topic)}
-              disabled={isTopicLocked(topicIndex)}
+              onClick={() => {
+                if (isTopicLocked(topicIndex)) {
+                  setInfoMessage("Complete earlier lessons to unlock this section.");
+                  return;
+                }
+                setSelectedTopic(topic);
+              }}
+              aria-disabled={isTopicLocked(topicIndex)}
             >
               <span>{topic}</span>
               {isTopicLocked(topicIndex) && <LockIcon className="w-8 h-8 text-gray-500" />}
@@ -145,6 +183,14 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
           </div>
         ))}
       </div>
+      {infoMessage && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border border-cyan-500/40 bg-gray-900/95 p-4 shadow-xl">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 h-2 w-2 rounded-full bg-cyan-400" />
+            <div className="text-sm text-gray-200">{infoMessage}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
