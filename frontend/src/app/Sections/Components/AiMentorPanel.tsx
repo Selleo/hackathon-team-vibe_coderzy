@@ -186,7 +186,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
 
   const chatSection = (
     <>
-      <div className="mb-4 max-h-72 overflow-y-auto space-y-3 border border-[#1A1A1A] bg-[#050505] p-4">
+      <div className="mb-4 overflow-y-auto space-y-3 border border-[#1A1A1A] bg-[#050505] p-4">
         {messages.map((message) => (
           <div
             key={message.id}

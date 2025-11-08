@@ -1,9 +1,22 @@
-import { ExaminerResponse } from "../lib/types";
+import { ExaminerResponse, UserProfile } from "../lib/types";
 
 export type MentorChatHistoryItem = {
-  role: "mentor" | "user";
+  role: "assistant" | "user";
   content: string;
+  timestamp?: string | number | Date;
+  [key: string]: unknown;
 };
+
+export interface SaveChatPayload {
+  message: string;
+  userProfile: UserProfile;
+  conversationHistory?: MentorChatHistoryItem[];
+}
+
+export interface SaveChatResponse {
+  response?: string;
+  [key: string]: unknown;
+}
 
 const jsonHeaders = {
   "Content-Type": "application/json",
@@ -65,7 +78,7 @@ export const getAiMentorExplain = async (
   topic: string,
   prompt: string,
   learnerQuestion: string,
-  history: MentorChatHistoryItem[] = [],
+  history: MentorChatHistoryItem[] = []
 ): Promise<string> => {
   const response = await fetch("/api/mentor/ai-explain", {
     method: "POST",
@@ -79,11 +92,25 @@ export const getAiMentorExplain = async (
       learnerQuestion,
       history,
     }),
-export const saveChat = async (payload: {
-  message: string;
-  userProfile: any;
-  conversationHistory?: any[];
-}) => {
+  });
+
+  if (!response.ok) {
+    await handleError(response);
+  }
+
+  const data = await response.json();
+
+  return (
+    data?.reply ??
+    data?.response ??
+    data?.message ??
+    (typeof data === "string" ? data : "")
+  );
+};
+
+export const saveChat = async (
+  payload: SaveChatPayload
+): Promise<SaveChatResponse> => {
   const response = await fetch("/api/mentor/chat", {
     method: "POST",
     headers: jsonHeaders,
@@ -94,14 +121,13 @@ export const saveChat = async (payload: {
     await handleError(response);
   }
 
-  const data = await response.json();
-  return data.feedback as string;
+  return (await response.json()) as SaveChatResponse;
 };
 
 export const requestAiMentorQuestion = async (
   lessonContext: string,
   topic: string,
-  prompt: string,
+  prompt: string
 ): Promise<{ question: string }> => {
   const response = await fetch("/api/mentor/ai-quiz", {
     method: "POST",
@@ -125,7 +151,7 @@ export const submitAiMentorAnswer = async (
   lessonContext: string,
   topic: string,
   question: string,
-  answer: string,
+  answer: string
 ): Promise<{ correct: boolean; feedback: string }> => {
   const response = await fetch("/api/mentor/ai-quiz", {
     method: "POST",
@@ -144,5 +170,4 @@ export const submitAiMentorAnswer = async (
   }
 
   return (await response.json()) as { correct: boolean; feedback: string };
-  return response.json();
 };
