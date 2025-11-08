@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import ChatWithMentor from "../components/ChatWithMentor";
 import { UserProfile } from "../lib/types";
 
@@ -10,16 +10,15 @@ const defaultProfile: UserProfile = {
 };
 
 export default function ChatPage() {
-  const [userProfile, setUserProfile] = useState<UserProfile>(defaultProfile);
-
-  useEffect(() => {
+  const userProfile = useMemo<UserProfile>(() => {
+    if (typeof window === "undefined") {
+      return defaultProfile;
+    }
     try {
-      const stored = localStorage.getItem("userProfile");
-      if (stored) {
-        setUserProfile(JSON.parse(stored));
-      }
-    } catch (e) {
-      // ignore and use default
+      const stored = window.localStorage.getItem("userProfile");
+      return stored ? (JSON.parse(stored) as UserProfile) : defaultProfile;
+    } catch {
+      return defaultProfile;
     }
   }, []);
 

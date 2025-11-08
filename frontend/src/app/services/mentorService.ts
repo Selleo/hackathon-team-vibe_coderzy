@@ -7,15 +7,15 @@ export type MentorChatHistoryItem = {
   [key: string]: unknown;
 };
 
+export type ConversationHistoryItem = {
+  role: "assistant" | "user";
+  content: string;
+};
+
 export interface SaveChatPayload {
   message: string;
   userProfile: UserProfile;
-  conversationHistory?: MentorChatHistoryItem[];
-}
-
-export interface SaveChatResponse {
-  response?: string;
-  [key: string]: unknown;
+  conversationHistory?: ConversationHistoryItem[];
 }
 
 const jsonHeaders = {
@@ -101,6 +101,7 @@ export const getAiMentorExplain = async (
   const data = await response.json();
 
   return (
+    data?.feedback ??
     data?.reply ??
     data?.response ??
     data?.message ??
@@ -109,8 +110,8 @@ export const getAiMentorExplain = async (
 };
 
 export const saveChat = async (
-  payload: SaveChatPayload
-): Promise<SaveChatResponse> => {
+  payload: SaveChatPayload,
+): Promise<string> => {
   const response = await fetch("/api/mentor/chat", {
     method: "POST",
     headers: jsonHeaders,
@@ -121,7 +122,8 @@ export const saveChat = async (
     await handleError(response);
   }
 
-  return (await response.json()) as SaveChatResponse;
+  const data = (await response.json()) as { response?: string };
+  return data.response ?? "";
 };
 
 export const requestAiMentorQuestion = async (

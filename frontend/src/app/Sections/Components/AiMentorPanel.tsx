@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiMentorBlock, UserProfile } from "../../lib/types";
 import {
   MentorChatHistoryItem,
@@ -53,6 +53,15 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
     }),
     [block.topic],
   );
+
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatScrollRef.current?.scrollTo({
+      top: chatScrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
 
   useEffect(() => {
     setPromptInput(block.suggestedQuestions?.[0] ?? "");
@@ -186,7 +195,10 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
 
   const chatSection = (
     <>
-      <div className="mb-4 overflow-y-auto space-y-3 border border-[#1A1A1A] bg-[#050505] p-4">
+      <div
+        ref={chatScrollRef}
+        className="mb-4 max-h-72 overflow-y-auto space-y-3 border border-[#1A1A1A] bg-[#050505] p-4"
+      >
         {messages.map((message) => (
           <div
             key={message.id}

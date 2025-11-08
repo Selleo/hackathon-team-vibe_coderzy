@@ -51,17 +51,21 @@ const ChatWithMentor: React.FC<ChatWithMentorProps> = ({ userProfile }) => {
     setIsLoading(true);
 
     try {
-      // Use frontend API route/service to save chat and get assistant response
-      const data = await saveChat({
+      const sanitizedHistory = [...messages, userMessage].map(({ role, content }) => ({
+        role,
+        content,
+      }));
+
+      const assistantReply = await saveChat({
         message: inputValue,
         userProfile,
-        conversationHistory: messages,
+        conversationHistory: sanitizedHistory,
       });
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data?.response ?? "Przykładowa odpowiedź mentora.",
+        content: assistantReply || "Przykładowa odpowiedź mentora.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
