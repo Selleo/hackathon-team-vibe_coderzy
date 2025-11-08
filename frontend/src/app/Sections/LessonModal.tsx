@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getExaminerFeedback } from "../services/geminiService";
+import { getExaminerFeedback } from "../services/mentorService";
 import {
   CodeBlock,
   LessonBlock,
