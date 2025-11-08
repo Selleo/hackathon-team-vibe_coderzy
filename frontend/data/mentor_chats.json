@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1762613398876,
+    "message": "help me with math",
+    "userProfile": {
+      "experience": "Complete Beginner",
+      "intensity": "5 minutes (Casual)"
+    },
+    "conversationHistory": [
+      {
+        "id": "1",
+        "role": "assistant",
+        "content": "Cześć! Jestem twoim mentorem programowania. Widzę, że twój poziom to Complete Beginner i pracujesz z intensywnością 5 minutes (Casual). Jak mogę ci dzisiaj pomóc?",
+        "timestamp": "2025-11-08T14:49:33.515Z"
+      }
+    ],
+    "timestamp": "2025-11-08T14:49:58.876Z"
+  }
+]
