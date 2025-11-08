@@ -100,7 +100,7 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => (
     <div className="flex flex-col items-start">
       {stages.map((stage, index) => (
         <RoadmapNode
-          key={stage.id}
+          key={`${stage.id}-${index}`}
           stage={stage}
           index={index}
           onSelect={() => onStageSelect(stage)}

@@ -48,7 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="flex flex-col md:flex-row h-screen">
       <nav className="w-full md:w-64 bg-gray-800 p-4 flex flex-row md:flex-col justify-between items-center md:items-stretch md:justify-start shadow-lg z-20">
         <div>
-          <h1 className="text-2xl font-bold text-cyan-400 mb-2 md:mb-8 text-center md:text-left">Dopamine Dev</h1>
+          <h1 className="text-2xl font-bold text-cyan-400 mb-2 md:mb-8 text-center md:text-left">ViaMent</h1>
           <ul className="flex flex-row md:flex-col md:space-y-2 justify-center">
             {tabs.map((tab) => (
               <li key={tab.name}>
