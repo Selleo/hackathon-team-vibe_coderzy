@@ -1,6 +1,10 @@
 export interface UserProfile {
-  experience: string;
-  intensity: string;
+  reason: string;
+  jobStatus: string;
+  codingExperience: string;
+  captivates: string;
+  learningGoal: string;
+  hobbies: string[];
 }
 
 export enum StageStatus {

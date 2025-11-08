@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { UserProfile } from "../lib/types";
 import QuestionStep from "./Components/QuestionStep";
+import HobbyStep from "./Components/HobbyStep";
 
 interface SurveyProps {
   onComplete: (profile: UserProfile) => void;
@@ -19,38 +20,98 @@ const Survey: React.FC<SurveyProps> = ({ onComplete }) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleHobbiesComplete = (hobbies: string[]) => {
+    setProfile((prev) => ({ ...prev, hobbies }));
+    nextStep();
+  };
+
+  const handleTextChange = (field: keyof UserProfile, value: string) => {
+    setProfile((prev) => ({ ...prev, [field]: value }));
+  };
+
   const handleSubmit = () => {
-    if (profile.experience && profile.intensity) {
+    if (profile.reason && profile.jobStatus && profile.codingExperience && profile.captivates && profile.learningGoal && profile.hobbies) {
       onComplete(profile as UserProfile);
     }
   };
 
-  const progress = (step / 2) * 100;
+  const progress = (step / 6) * 100;
 
   const renderStep = () => {
     switch (step) {
       case 1:
         return (
           <QuestionStep
-            title="What is your coding experience?"
-            field="experience"
-            options={["Complete Beginner", "Some tutorials", "Built a small project", "Professional Developer"]}
+            title="Why do you want to study?"
+            field="reason"
+            options={["Career Change", "Skill Enhancement", "Hobby", "Curiosity"]}
             onSelect={handleSelectChange}
             next={nextStep}
-            selected={profile.experience}
+            selected={profile.reason}
           />
         );
       case 2:
         return (
           <QuestionStep
-            title="How much time can you commit daily?"
-            field="intensity"
-            options={["5 minutes (Casual)", "10 minutes (Regular)", "20 minutes (Serious)"]}
+            title="What is your job status?"
+            field="jobStatus"
+            options={["Student", "High School Student", "Employee", "Other"]}
             onSelect={handleSelectChange}
-            next={handleSubmit}
+            next={nextStep}
             prev={prevStep}
-            selected={profile.intensity}
+            selected={profile.jobStatus}
           />
+        );
+      case 3:
+        return (
+          <QuestionStep
+            title="What is your coding experience?"
+            field="codingExperience"
+            options={["Complete Beginner", "Some tutorials", "Built a small project", "Professional Developer"]}
+            onSelect={handleSelectChange}
+            next={nextStep}
+            prev={prevStep}
+            selected={profile.codingExperience}
+          />
+        );
+      case 4:
+        return (
+          <QuestionStep
+            title="Which aspect of coding captivates you?"
+            field="captivates"
+            options={["Problem Solving", "Creativity", "Building things", "The challenge"]}
+            onSelect={handleSelectChange}
+            next={nextStep}
+            prev={prevStep}
+            selected={profile.captivates}
+          />
+        );
+      case 5:
+        return (
+          <HobbyStep
+            onComplete={handleHobbiesComplete}
+            prev={prevStep}
+          />
+        );
+      case 6:
+        return (
+          <div className="flex flex-col items-center space-y-4">
+            <h2 className="text-2xl font-semibold">What do you want to learn?</h2>
+            <textarea
+              className="w-full p-4 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              placeholder="e.g., Build a full-stack web application with React and Node.js"
+              value={profile.learningGoal || ""}
+              onChange={(e) => handleTextChange("learningGoal", e.target.value)}
+            />
+            <div className="flex justify-between w-full">
+              <button onClick={prevStep} className="px-6 py-2 text-white bg-gray-600 rounded-lg hover:bg-gray-500">
+                Back
+              </button>
+              <button onClick={handleSubmit} className="px-6 py-2 text-white bg-cyan-600 rounded-lg hover:bg-cyan-500">
+                Finish
+              </button>
+            </div>
+          </div>
         );
       default:
         return null;
@@ -73,7 +134,5 @@ const Survey: React.FC<SurveyProps> = ({ onComplete }) => {
     </div>
   );
 };
-
-
 
 export default Survey;

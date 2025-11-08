@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { LessonSummary, UserProfile } from "../lib/types";
 import LessonModal from "./LessonModal";
-import Roadmap from "./Roadmap";
+import ProgressPath from "./ProgressPath";
 import Leaderboard from "./Components/Leaderboard";
 import Profile from "./Components/Profile";
 import ChatWithMentor from "../components/ChatWithMentor";
@@ -202,6 +202,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           aria-hidden
         />
       )}
+
 
       <main
         className={`flex-1 p-4 pt-20 sm:p-6 md:p-8 md:pt-8 overflow-y-auto bg-gray-900 ml-0`}
