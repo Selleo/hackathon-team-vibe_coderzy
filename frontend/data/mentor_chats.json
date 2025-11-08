@@ -15,5 +15,51 @@
       }
     ],
     "timestamp": "2025-11-08T14:49:58.876Z"
+  },
+  {
+    "id": 1762620826353,
+    "message": "siema",
+    "userProfile": {
+      "experience": "Complete Beginner",
+      "intensity": "5 minutes (Casual)"
+    },
+    "conversationHistory": [
+      {
+        "role": "assistant",
+        "content": "Cześć! Jestem twoim mentorem programowania. Widzę, że twój poziom to Complete Beginner i pracujesz z intensywnością 5 minutes (Casual). Jak mogę ci dzisiaj pomóc?"
+      },
+      {
+        "role": "user",
+        "content": "siema"
+      }
+    ],
+    "timestamp": "2025-11-08T16:53:46.353Z"
+  },
+  {
+    "id": 1762620831478,
+    "message": "eeooo",
+    "userProfile": {
+      "experience": "Complete Beginner",
+      "intensity": "5 minutes (Casual)"
+    },
+    "conversationHistory": [
+      {
+        "role": "assistant",
+        "content": "Cześć! Jestem twoim mentorem programowania. Widzę, że twój poziom to Complete Beginner i pracujesz z intensywnością 5 minutes (Casual). Jak mogę ci dzisiaj pomóc?"
+      },
+      {
+        "role": "user",
+        "content": "siema"
+      },
+      {
+        "role": "assistant",
+        "content": "Wiadomość zapisana. Prześlij kolejne pytanie, a ja pomogę."
+      },
+      {
+        "role": "user",
+        "content": "eeooo"
+      }
+    ],
+    "timestamp": "2025-11-08T16:53:51.478Z"
   }
 ]
