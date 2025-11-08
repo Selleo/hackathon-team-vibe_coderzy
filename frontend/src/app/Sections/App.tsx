@@ -3,12 +3,15 @@
 import { useState, useCallback } from "react";
 import Dashboard from "./Dashboard";
 import Survey from "./Survey";
+import MainTopics from "./MainTopics";
 import { INITIAL_ROADMAP_LESSONS } from "../lib/constants";
 import { LessonSummary, StageStatus, UserProfile } from "../lib/types";
 
 const App = () => {
   const [surveyCompleted, setSurveyCompleted] = useState(false);
+  const [topicsCompleted, setTopicsCompleted] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [mainTopics, setMainTopics] = useState<string[]>([]);
 
   const [lives, setLives] = useState(3);
   const [streak, setStreak] = useState(3);
@@ -18,6 +21,11 @@ const App = () => {
   const handleSurveyComplete = useCallback((profile: UserProfile) => {
     setUserProfile(profile);
     setSurveyCompleted(true);
+  }, []);
+
+  const handleTopicsComplete = useCallback((topics: string[]) => {
+    setMainTopics(topics);
+    setTopicsCompleted(true);
   }, []);
 
   const loseLife = () => {
@@ -44,6 +52,8 @@ const App = () => {
     <div className="min-h-screen bg-gray-900 text-white font-sans">
       {!surveyCompleted ? (
         <Survey onComplete={handleSurveyComplete} />
+      ) : !topicsCompleted ? (
+        <MainTopics onComplete={handleTopicsComplete} />
       ) : (
         userProfile && (
           <Dashboard
