@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { getExaminerFeedback } from "../services/mentorService";
+import AiMentorPanel from "./Components/AiMentorPanel";
 import {
   CodeBlock,
   LessonBlock,
@@ -72,6 +73,10 @@ const LessonModal: React.FC<LessonModalProps> = ({ stage, userProfile, onClose, 
             userProfile={userProfile}
           />
         );
+      case "ai-mentor":
+        return (
+          <AiMentorPanel block={block} userProfile={userProfile} onContinue={handleNextBlock} />
+        );
       default:
         return <div>Unsupported block type.</div>;
     }
@@ -104,9 +109,10 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
 }) => {
   const [selectedOption, setSelectedOption] = useState<QuizOption | null>(null);
   const [answerStatus, setAnswerStatus] = useState<"correct" | "incorrect" | null>(null);
+  const optionsLocked = answerStatus === "correct";
 
   const handleQuizAnswer = (option: QuizOption) => {
-    if (answerStatus) return;
+    if (optionsLocked) return;
 
     setSelectedOption(option);
     if (option.isCorrect) {
@@ -126,7 +132,7 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
           <button
             key={index}
             onClick={() => handleQuizAnswer(option)}
-            disabled={!!answerStatus}
+            disabled={optionsLocked}
             className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${
               selectedOption?.text === option.text
                 ? option.isCorrect
@@ -142,17 +148,23 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
       {answerStatus && (
         <div className="mt-4 p-4 rounded-lg bg-gray-700">
           <p
-            className={`font-bold text-lg mb-2 ${answerStatus === "correct" ? "text-emerald-400" : "text-red-400"}`}
+            className={`font-bold text-lg mb-2 ${
+              answerStatus === "correct" ? "text-emerald-400" : "text-red-400"
+            }`}
           >
             {answerStatus === "correct" ? "Correct!" : "Not quite..."}
           </p>
-          <p className="text-gray-300">{selectedOption?.explanation}</p>
-          <button
-            onClick={onCorrect}
-            className="mt-4 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg transition"
-          >
-            Continue
-          </button>
+          <p className="text-gray-300 mb-3">{selectedOption?.explanation}</p>
+          {answerStatus === "correct" ? (
+            <button
+              onClick={onCorrect}
+              className="mt-1 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg transition"
+            >
+              Continue
+            </button>
+          ) : (
+            <p className="text-sm text-gray-400">Try another option to continue.</p>
+          )}
         </div>
       )}
     </div>

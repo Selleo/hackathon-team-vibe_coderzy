@@ -81,7 +81,6 @@ const RoadmapNode = ({
     </div>
   );
 };
-
 const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
 
