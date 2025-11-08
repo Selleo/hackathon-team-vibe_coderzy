@@ -2,41 +2,14 @@
 
 import { useState } from "react";
 import { LessonSummary, StageStatus } from "../lib/types";
+import { CoinIcon, ChestIcon, StarIcon, LockIcon } from "./Components/Icons";
 
-const LockIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
-    <path
-      fillRule="evenodd"
-      d="M10 1a3 3 0 00-3 3v2H6a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V8a2 2 0 00-2-2h-1V4a3 3 0 00-3-3zm-1 4V4a1 1 0 112 0v1H9z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-const CheckCircleIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
-    <path
-      fillRule="evenodd"
-      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-const PlayIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
-    <path
-      fillRule="evenodd"
-      d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-
-interface RoadmapProps {
+interface ProgressPathProps {
   stages: LessonSummary[];
   onStageSelect: (stage: LessonSummary) => void;
 }
 
-const RoadmapNode = ({
+const Milestone = ({
   stage,
   onSelect,
   index,
@@ -46,6 +19,9 @@ const RoadmapNode = ({
   index: number;
 }) => {
   const isLocked = stage.status === StageStatus.Locked;
+  const isMajor = (index + 1) % 5 === 0; // Every 5th lesson is a major milestone
+
+  const icon = isMajor ? <ChestIcon className="w-12 h-12" /> : <CoinIcon className="w-12 h-12" />;
 
   const nodeStyles = {
     [StageStatus.Unlocked]: "bg-cyan-500 border-cyan-300 shadow-cyan-500/50",
@@ -59,30 +35,35 @@ const RoadmapNode = ({
     [StageStatus.Locked]: "text-gray-400",
   } as const;
 
-  const icon = {
-    [StageStatus.Unlocked]: <PlayIcon className="w-8 h-8" />,
-    [StageStatus.Completed]: <CheckCircleIcon className="w-8 h-8" />,
-    [StageStatus.Locked]: <LockIcon className="w-6 h-6" />,
-  } as const;
-
   return (
-    <div className="flex flex-col items-center">
-      <button
-        onClick={onSelect}
-        disabled={isLocked}
-        aria-label={`Lesson ${index + 1}: ${stage.title}, status: ${stage.status}`}
-        className={`flex items-center justify-center w-24 h-24 rounded-full border-8 shadow-lg transition-transform duration-200 ${
-          nodeStyles[stage.status]
-        } ${!isLocked ? "hover:scale-110" : ""}`}
-      >
-        {icon[stage.status]}
-      </button>
-      <p className={`mt-2 text-center font-semibold ${textStyles[stage.status]}`}>{stage.title}</p>
+    <div className={`flex items-center w-full ${index % 2 === 0 ? "justify-start" : "justify-end"}`}>
+      <div className="flex flex-col items-center w-40">
+        <button
+          onClick={onSelect}
+          disabled={isLocked}
+          className={`flex items-center justify-center w-24 h-24 rounded-full border-8 shadow-lg transition-transform duration-200 ${
+            nodeStyles[stage.status]
+          } ${!isLocked ? "hover:scale-110" : ""}`}
+        >
+          {icon}
+        </button>
+        <p className={`mt-2 text-center font-semibold ${textStyles[stage.status]}`}>{stage.title}</p>
+        <div className="flex mt-1">
+          {[...Array(5)].map((_, i) => (
+            <StarIcon
+              key={i}
+              className={`w-4 h-4 ${
+                i < (stage.lesson.xp_reward / 20) * 5 ? "text-yellow-400" : "text-gray-600"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
 
-const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
+const ProgressPath: React.FC<ProgressPathProps> = ({ stages, onStageSelect }) => {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
 
   const topics = stages.reduce((acc, stage) => {
@@ -107,23 +88,22 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
   if (selectedTopic) {
     const lessons = topics[selectedTopic];
     return (
-      <div className="container mx-auto max-w-4xl animate-fade-in px-4">
+      <div className="container mx-auto max-w-lg animate-fade-in px-4">
         <button onClick={() => setSelectedTopic(null)} className="mb-8 px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600">
           &larr; Back to Topics
         </button>
         <h1 className="text-5xl font-extrabold mb-10 text-cyan-300 tracking-tight text-center">{selectedTopic}</h1>
-        <div className="flex flex-col items-center">
-          <div className="relative">
-            {lessons.map((stage, index) => (
-              <div key={stage.id} className="flex items-center justify-center my-4">
-                <RoadmapNode
-                  stage={stage}
-                  index={index}
-                  onSelect={() => onStageSelect(stage)}
-                />
-              </div>
-            ))}
-          </div>
+        <div className="relative">
+          <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-2 bg-gray-700"></div>
+          {lessons.map((stage, index) => (
+            <div key={stage.id} className="my-12">
+              <Milestone
+                stage={stage}
+                index={index}
+                onSelect={() => onStageSelect(stage)}
+              />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -150,4 +130,4 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
   );
 };
 
-export default Roadmap;
+export default ProgressPath;

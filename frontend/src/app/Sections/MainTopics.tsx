@@ -1,22 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { TrashIcon } from "./Components/Icons";
 
 interface MainTopicsProps {
   onComplete: (topics: string[]) => void;
+  initialTopics: string[];
 }
 
-const MainTopics: React.FC<MainTopicsProps> = ({ onComplete }) => {
-  const [topics, setTopics] = useState(["React", "TypeScript", "Node.js"]);
+const MainTopics: React.FC<MainTopicsProps> = ({ onComplete, initialTopics }) => {
+  const [topics, setTopics] = useState(initialTopics);
+
+  useEffect(() => {
+    setTopics(initialTopics);
+  }, [initialTopics]);
 
   const handleTopicChange = (index: number, value: string) => {
     const newTopics = [...topics];
     newTopics[index] = value;
     setTopics(newTopics);
-  };
-
-  const addTopic = () => {
-    setTopics([...topics, ""]);
   };
 
   const removeTopic = (index: number) => {
@@ -43,16 +45,13 @@ const MainTopics: React.FC<MainTopicsProps> = ({ onComplete }) => {
                 onChange={(e) => handleTopicChange(index, e.target.value)}
                 className="w-full p-4 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
-              <button onClick={() => removeTopic(index)} className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-500">
-                Remove
+              <button onClick={() => removeTopic(index)} className="p-2 text-white bg-red-600 rounded-lg hover:bg-red-500">
+                <TrashIcon className="w-6 h-6" />
               </button>
             </div>
           ))}
         </div>
-        <div className="flex justify-between">
-          <button onClick={addTopic} className="px-6 py-2 text-white bg-gray-600 rounded-lg hover:bg-gray-500">
-            Add Topic
-          </button>
+        <div className="flex justify-end">
           <button onClick={handleSubmit} className="px-6 py-2 text-white bg-cyan-600 rounded-lg hover:bg-cyan-500">
             Generate Roadmap
           </button>

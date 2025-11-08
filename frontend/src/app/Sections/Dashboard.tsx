@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { LessonSummary, UserProfile } from "../lib/types";
 import LessonModal from "./LessonModal";
-import Roadmap from "./Roadmap";
+import ProgressPath from "./ProgressPath";
 import Leaderboard from "./Components/Leaderboard";
 import Profile from "./Components/Profile";
 
@@ -82,7 +82,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       </nav>
 
       <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto bg-gray-900">
-        {activeTab === "Roadmap" && <Roadmap stages={roadmap} onStageSelect={setSelectedLesson} />}
+        {activeTab === "Roadmap" && <ProgressPath stages={roadmap} onStageSelect={setSelectedLesson} />}
         {activeTab === "Leaderboard" && <Leaderboard currentUserXp={xp} />}
         {activeTab === "Profile" && <Profile userProfile={userProfile} />}
       </main>
