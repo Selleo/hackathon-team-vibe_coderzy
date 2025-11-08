@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { LessonSummary, UserProfile } from "../lib/types";
 import LessonModal from "./LessonModal";
-import ProgressPath from "./ProgressPath";
+import Roadmap from "./Roadmap";
 import Leaderboard from "./Components/Leaderboard";
 import Profile from "./Components/Profile";
 import ChatWithMentor from "../components/ChatWithMentor";

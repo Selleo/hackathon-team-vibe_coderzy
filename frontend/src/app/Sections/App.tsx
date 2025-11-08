@@ -1,10 +1,19 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Dashboard from "./Dashboard";
 import Survey from "./Survey";
 import MainTopics from "./MainTopics";
 import { LessonSummary, StageStatus, UserProfile } from "../lib/types";
+
+interface StoredLessonSummary extends Omit<LessonSummary, "status"> {
+  status: StageStatus;
+}
+
+interface RoadmapLessonResponse {
+  title: string;
+  description: string;
+}
 
 const App = () => {
   const [surveyCompleted, setSurveyCompleted] = useState(false);
@@ -16,8 +25,96 @@ const App = () => {
   const [loadingRoadmap, setLoadingRoadmap] = useState(false);
 
   const [lives, setLives] = useState(3);
-  const [streak, setStreak] = useState(3);
+  const [streak, setStreak] = useState(0);
   const [xp, setXp] = useState(420);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const storedSurveyCompleted = localStorage.getItem("surveyCompleted");
+      if (storedSurveyCompleted === "true") {
+        setSurveyCompleted(true);
+      }
+
+      const storedTopicsCompleted = localStorage.getItem("topicsCompleted");
+      if (storedTopicsCompleted === "true") {
+        setTopicsCompleted(true);
+      }
+
+      const storedUserProfile = localStorage.getItem("userProfile");
+      if (storedUserProfile) {
+        setUserProfile(JSON.parse(storedUserProfile));
+      }
+
+      const storedMainTopics = localStorage.getItem("mainTopics");
+      if (storedMainTopics) {
+        const parsedTopics = JSON.parse(storedMainTopics);
+        if (Array.isArray(parsedTopics)) {
+          setMainTopics(parsedTopics);
+        }
+      }
+
+      const storedRoadmap = localStorage.getItem("roadmap");
+      if (storedRoadmap) {
+        const parsedRoadmap = JSON.parse(storedRoadmap) as StoredLessonSummary[];
+        if (Array.isArray(parsedRoadmap)) {
+          setRoadmap(
+            parsedRoadmap.map((lesson) => ({
+              ...lesson,
+              status: lesson.status as StageStatus,
+            })),
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error loading persisted user data:", error);
+    } finally {
+      setIsHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") {
+      return;
+    }
+    localStorage.setItem("surveyCompleted", surveyCompleted ? "true" : "false");
+  }, [surveyCompleted, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") {
+      return;
+    }
+    localStorage.setItem("topicsCompleted", topicsCompleted ? "true" : "false");
+  }, [topicsCompleted, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") {
+      return;
+    }
+    if (userProfile) {
+      localStorage.setItem("userProfile", JSON.stringify(userProfile));
+    } else {
+      localStorage.removeItem("userProfile");
+    }
+  }, [userProfile, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") {
+      return;
+    }
+    localStorage.setItem("mainTopics", JSON.stringify(mainTopics));
+  }, [mainTopics, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") {
+      return;
+    }
+    localStorage.setItem("roadmap", JSON.stringify(roadmap));
+  }, [roadmap, isHydrated]);
 
   const handleSurveyComplete = useCallback(async (profile: UserProfile) => {
     setUserProfile(profile);
@@ -31,8 +128,8 @@ const App = () => {
         },
         body: JSON.stringify(profile),
       });
-      const data = await response.json();
-      setMainTopics(data.topics);
+  const data = await response.json();
+  setMainTopics(Array.isArray(data.topics) ? data.topics : []);
     } catch (error) {
       console.error("Error fetching topics:", error);
       // Handle error, maybe set some default topics
@@ -56,7 +153,10 @@ const App = () => {
           body: JSON.stringify({ topic }),
         });
         const data = await response.json();
-        const topicLessons = data.lessons.map((lesson: any) => ({
+        const lessons: RoadmapLessonResponse[] = Array.isArray(data.lessons)
+          ? data.lessons
+          : [];
+        const topicLessons: LessonSummary[] = lessons.map((lesson) => ({
           id: `${topic}-${lesson.title}`,
           title: lesson.title,
           status: StageStatus.Unlocked,
@@ -67,8 +167,14 @@ const App = () => {
             chapter: topic,
             estimated_minutes: 10,
             xp_reward: 20,
-            prerequisites: [],
-            blocks: [{ type: "text", title: lesson.title, markdown: lesson.description }],
+            prerequisites: [] as string[],
+            blocks: [
+              {
+                type: "text" as const,
+                title: lesson.title,
+                markdown: lesson.description,
+              },
+            ],
           },
         }));
         newRoadmap = [...newRoadmap, ...topicLessons];
@@ -100,23 +206,41 @@ const App = () => {
 
       return newRoadmap;
     });
-    setStreak((prev) => prev + 1);
+    setStreak((prev) => (prev === 0 ? 1 : prev));
   };
+
+  const renderLoadingState = (message: string) => (
+    <div className="relative flex items-center justify-center min-h-screen overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-20"
+        aria-hidden
+      >
+        <div
+          className="animate-[spin-y_12s_linear_infinite]"
+          style={{
+            backgroundImage: "url('/logo.svg')",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "center",
+            backgroundSize: "contain",
+            width: "32rem",
+            height: "32rem",
+          }}
+        />
+      </div>
+      <div className="relative z-10 text-2xl text-white">{message}</div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans">
       {!surveyCompleted ? (
         <Survey onComplete={handleSurveyComplete} />
       ) : loadingTopics ? (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-2xl">Generating your personalized roadmap...</div>
-        </div>
+        renderLoadingState("Generating your personalized roadmap...")
       ) : !topicsCompleted ? (
         <MainTopics onComplete={handleTopicsComplete} initialTopics={mainTopics} />
       ) : loadingRoadmap ? (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-2xl">Generating your personalized roadmap...</div>
-        </div>
+        renderLoadingState("Generating your personalized roadmap...")
       ) : (
         userProfile && (
           <Dashboard
