@@ -43,6 +43,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
   const [isFetchingQuestion, setIsFetchingQuestion] = useState(false);
   const [isCheckingAnswer, setIsCheckingAnswer] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null);
 
   const introMessage = useMemo<ChatMessage>(
     () => ({
@@ -70,6 +71,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
     setCurrentQuestion(null);
     setQuizAnswer("");
     setQuizFeedback(null);
+    setLastAnswerCorrect(null);
     setQuizError(null);
     setCorrectCount(0);
   }, [block, introMessage]);
@@ -175,8 +177,10 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
         currentQuestion,
         trimmed,
       );
+      const wasCorrect = typeof result.correct === "boolean" ? result.correct : true;
       setQuizFeedback(result.feedback);
-      if (result.correct) {
+      setLastAnswerCorrect(wasCorrect);
+      if (wasCorrect) {
         const nextCount = correctCount + 1;
         setCorrectCount(nextCount);
         setQuizAnswer("");
@@ -184,6 +188,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
           await fetchQuestion();
         } else {
           setCurrentQuestion(null);
+          setLastAnswerCorrect(null);
         }
       }
     } catch (err) {
@@ -192,6 +197,9 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
       setIsCheckingAnswer(false);
     }
   };
+
+  const lockNextQuestion =
+    Boolean(currentQuestion && lastAnswerCorrect === false && correctCount < quizGoal);
 
   const chatSection = (
     <>
@@ -308,7 +316,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
         <button
           type="button"
           onClick={requestNewQuestion}
-          disabled={isFetchingQuestion || isCheckingAnswer}
+          disabled={isFetchingQuestion || isCheckingAnswer || lockNextQuestion}
           className="flex-1 rounded-xl border border-[#2A2A2A] py-3 px-4 text-gray-300 transition hover:bg-[#1A1A1A] disabled:opacity-60"
         >
           New question
@@ -317,6 +325,11 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
       {quizFeedback && (
         <p className="mt-4 text-white bg-gray-800 rounded-lg p-4 whitespace-pre-wrap">
           {quizFeedback}
+        </p>
+      )}
+      {lastAnswerCorrect === false && (
+        <p className="mt-2 text-xs text-red-400">
+          Answer this question correctly before moving on.
         </p>
       )}
       {readyToContinue && (
