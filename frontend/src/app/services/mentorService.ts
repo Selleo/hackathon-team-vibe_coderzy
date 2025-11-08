@@ -24,7 +24,7 @@ export const getGuideFeedback = async (
   lessonContext: string,
   proficiency: string,
   userWork: string,
-  question: string,
+  question: string
 ): Promise<string> => {
   const response = await fetch("/api/mentor/guide", {
     method: "POST",
@@ -43,7 +43,7 @@ export const getGuideFeedback = async (
 export const getExaminerFeedback = async (
   lessonContext: string,
   proficiency: string,
-  userCode: string,
+  userCode: string
 ): Promise<ExaminerResponse> => {
   const response = await fetch("/api/mentor/examiner", {
     method: "POST",
@@ -79,6 +79,15 @@ export const getAiMentorExplain = async (
       learnerQuestion,
       history,
     }),
+export const saveChat = async (payload: {
+  message: string;
+  userProfile: any;
+  conversationHistory?: any[];
+}) => {
+  const response = await fetch("/api/mentor/chat", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -135,4 +144,5 @@ export const submitAiMentorAnswer = async (
   }
 
   return (await response.json()) as { correct: boolean; feedback: string };
+  return response.json();
 };
