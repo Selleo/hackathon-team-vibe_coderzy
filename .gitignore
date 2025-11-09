@@ -34,6 +34,7 @@ yarn-error.log*
 .env*
 
 GEMINI.md
+mentor_chats.json
 
 # vercel
 .vercel

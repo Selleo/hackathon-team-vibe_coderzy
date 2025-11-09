@@ -3,12 +3,25 @@
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+
+import toml
+from fastapi import APIRouter, Depends
 
 health_router = APIRouter()
 vibe_router = APIRouter()
 chat_router = APIRouter()
+dependencies_router = APIRouter()
+
+
+def get_pyproject_data():
+    with open("pyproject.toml") as f:
+        return toml.load(f)
+
+
+@dependencies_router.get("/", summary="Get project dependencies")
+def get_dependencies(pyproject_data: dict = Depends(get_pyproject_data)):
+    return pyproject_data.get("project", {}).get("dependencies", [])
+
 
 
 class Message(BaseModel):
