@@ -60,13 +60,15 @@ const App = () => {
 
       const storedRoadmap = localStorage.getItem("roadmap");
       if (storedRoadmap) {
-        const parsedRoadmap = JSON.parse(storedRoadmap) as StoredLessonSummary[];
+        const parsedRoadmap = JSON.parse(
+          storedRoadmap
+        ) as StoredLessonSummary[];
         if (Array.isArray(parsedRoadmap)) {
           setRoadmap(
             parsedRoadmap.map((lesson) => ({
               ...lesson,
               status: lesson.status as StageStatus,
-            })),
+            }))
           );
         }
       }
@@ -97,8 +99,10 @@ const App = () => {
     }
     if (userProfile) {
       localStorage.setItem("userProfile", JSON.stringify(userProfile));
+      localStorage.setItem("lastProfileSync", new Date().toISOString());
     } else {
       localStorage.removeItem("userProfile");
+      localStorage.removeItem("lastProfileSync");
     }
   }, [userProfile, isHydrated]);
 
@@ -113,7 +117,13 @@ const App = () => {
     if (!isHydrated || typeof window === "undefined") {
       return;
     }
-    localStorage.setItem("roadmap", JSON.stringify(roadmap));
+    if (roadmap.length > 0) {
+      localStorage.setItem("roadmap", JSON.stringify(roadmap));
+      localStorage.setItem("roadmapUpdatedAt", new Date().toISOString());
+    } else {
+      localStorage.removeItem("roadmap");
+      localStorage.removeItem("roadmapUpdatedAt");
+    }
   }, [roadmap, isHydrated]);
 
   const handleSurveyComplete = useCallback(async (profile: UserProfile) => {
@@ -128,8 +138,8 @@ const App = () => {
         },
         body: JSON.stringify(profile),
       });
-  const data = await response.json();
-  setMainTopics(Array.isArray(data.topics) ? data.topics : []);
+      const data = await response.json();
+      setMainTopics(Array.isArray(data.topics) ? data.topics : []);
     } catch (error) {
       console.error("Error fetching topics:", error);
       // Handle error, maybe set some default topics
@@ -196,10 +206,14 @@ const App = () => {
     setXp((prev) => prev + xpReward);
     setRoadmap((prevRoadmap) => {
       const newRoadmap = prevRoadmap.map((lesson) =>
-        lesson.id === lessonId ? { ...lesson, status: StageStatus.Completed } : lesson,
+        lesson.id === lessonId
+          ? { ...lesson, status: StageStatus.Completed }
+          : lesson
       );
 
-      const completedIndex = newRoadmap.findIndex((lesson) => lesson.id === lessonId);
+      const completedIndex = newRoadmap.findIndex(
+        (lesson) => lesson.id === lessonId
+      );
       if (completedIndex !== -1 && completedIndex + 1 < newRoadmap.length) {
         newRoadmap[completedIndex + 1].status = StageStatus.Unlocked;
       }
@@ -209,10 +223,47 @@ const App = () => {
     setStreak((prev) => (prev === 0 ? 1 : prev));
   };
 
+  const handleResetRoadmap = useCallback(() => {
+    setRoadmap([]);
+    setTopicsCompleted(false);
+    setLoadingRoadmap(false);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("roadmap");
+      localStorage.removeItem("roadmapUpdatedAt");
+      localStorage.setItem("topicsCompleted", "false");
+    }
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    setSurveyCompleted(false);
+    setTopicsCompleted(false);
+    setUserProfile(null);
+    setMainTopics([]);
+    setRoadmap([]);
+    setLives(3);
+    setStreak(0);
+    setXp(420);
+    setLoadingTopics(false);
+    setLoadingRoadmap(false);
+    if (typeof window !== "undefined") {
+      [
+        "surveyCompleted",
+        "topicsCompleted",
+        "userProfile",
+        "mainTopics",
+        "roadmap",
+        "lastProfileSync",
+        "roadmapUpdatedAt",
+      ].forEach((key) => localStorage.removeItem(key));
+    }
+  }, []);
+
   const renderLoadingState = (message: string) => (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-900 px-4">
-  <div className="text-2xl text-white">{message}</div>
-  <p className="text-sm text-gray-400">This might take a moment, thanks for your patience.</p>
+      <div className="text-2xl text-white">{message}</div>
+      <p className="text-sm text-gray-400">
+        This might take a moment, thanks for your patience.
+      </p>
       <div className="w-full max-w-xl">
         <div className="relative h-3 w-full overflow-hidden rounded-full bg-gray-800">
           <div className="absolute inset-y-0 left-0 w-1/2 animate-[progress-slide_1.6s_linear_infinite] bg-linear-to-r from-cyan-400 via-blue-500 to-indigo-500" />
@@ -228,7 +279,10 @@ const App = () => {
       ) : loadingTopics ? (
         renderLoadingState("Generating your personalized roadmap...")
       ) : !topicsCompleted ? (
-        <MainTopics onComplete={handleTopicsComplete} initialTopics={mainTopics} />
+        <MainTopics
+          onComplete={handleTopicsComplete}
+          initialTopics={mainTopics}
+        />
       ) : loadingRoadmap ? (
         renderLoadingState("Generating your personalized roadmap...")
       ) : (
@@ -241,6 +295,9 @@ const App = () => {
             loseLife={loseLife}
             completeLesson={completeLesson}
             userProfile={userProfile}
+            onResetRoadmap={handleResetRoadmap}
+            onLogout={handleLogout}
+            mainTopics={mainTopics}
           />
         )
       )}
