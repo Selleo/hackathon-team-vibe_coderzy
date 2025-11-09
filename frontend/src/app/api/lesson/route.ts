@@ -45,8 +45,8 @@ export async function POST(req: Request) {
     let userPrompt = "";
 
     if (plan.lessonType === "text") {
-      systemPrompt = "You are an expert educator creating engaging lesson content. Generate comprehensive, well-structured text lessons in markdown format.";
-      userPrompt = `Create a text lesson about "${plan.topic}" for someone working on ${profile.learningGoal}.
+      systemPrompt = "You are an expert educator creating engaging lesson content. Generate well-structured text lessons in markdown format. Keep each block VERY SHORT and focused.";
+      userPrompt = `Create a complete text lesson about "${plan.topic}" for someone working on ${profile.learningGoal}.
 
 Context:
 - Job: ${profile.jobStatus}
@@ -54,61 +54,95 @@ Context:
 - Motivation: ${profile.captivates}
 - Goal: ${profile.learningGoal}
 
-Generate a lesson with:
-1. Clear introduction explaining the concept
-2. Real-world examples related to their goal
-3. Key points to remember
-4. 3-5 quick action items for the learner
+Generate a lesson with 3 SEPARATE text blocks (the user will go through them one by one):
 
-Format the response as JSON with this structure:
+Block 1 - Introduction (VERY SHORT, 2-3 paragraphs MAXIMUM):
+- Brief introduction to the concept (1 paragraph)
+- Why it matters for their goal (1 paragraph)
+
+Block 2 - Deep Dive (VERY SHORT, 2-3 paragraphs MAXIMUM):
+- Main explanation with one simple example
+- How it applies to their specific goal
+
+Block 3 - Key Takeaways (VERY SHORT, 2-3 paragraphs MAXIMUM):
+- Summary in simple terms
+- One concrete next step
+
+IMPORTANT: Keep each block EXTREMELY SHORT and easy to read. No more than 3 paragraphs per block.
+
+Format the response as JSON:
 {
   "blocks": [
     {
       "type": "text",
-      "title": "Lesson Title",
-      "markdown": "Full lesson content in markdown with ## headings, **bold**, lists, etc.",
-      "quickActions": ["Action 1", "Action 2", "Action 3"]
+      "title": "Introduction to ${plan.topic}",
+      "markdown": "## Introduction\\n\\nShort introduction content here...",
+      "quickActions": ["Action 1", "Action 2"]
+    },
+    {
+      "type": "text",
+      "title": "Understanding ${plan.topic}",
+      "markdown": "## Deep Dive\\n\\nMain explanation here...",
+      "quickActions": ["Action 1", "Action 2"]
+    },
+    {
+      "type": "text",
+      "title": "Key Takeaways",
+      "markdown": "## Summary\\n\\nKey points here...",
+      "quickActions": ["Action 1", "Action 2"]
     }
   ]
 }`;
     } else if (plan.lessonType === "quiz") {
       systemPrompt = "You are an expert educator creating quiz questions that test understanding in practical scenarios.";
-      userPrompt = `Create a quiz about "${plan.topic}" for someone working on ${profile.learningGoal}.
+      userPrompt = `Create a complete quiz lesson about "${plan.topic}" for someone working on ${profile.learningGoal}.
 
 Context:
 - Job: ${profile.jobStatus}
 - Experience: ${profile.codingExperience}
 - Goal: ${profile.learningGoal}
 
-Generate a quiz with:
-1. A brief recap of the concept (2-3 sentences)
-2. A practical scenario related to their goal
-3. A clear question
-4. 3-4 multiple choice options (only one correct)
-5. Explanations for each option
+Generate a lesson with these blocks IN THIS ORDER:
+
+Block 1 - Text recap (VERY SHORT):
+- Brief review in 1-2 paragraphs ONLY
+- Keep it concise and to the point
+
+Block 2 - Quiz question:
+- Practical scenario related to their goal
+- Clear question with 3-4 options
+- Only one correct answer
+- Short explanations for each (1-2 sentences)
 
 Format as JSON:
 {
   "blocks": [
     {
+      "type": "text",
+      "title": "Quick Review",
+      "markdown": "## Review: ${plan.topic}\\n\\nBrief recap here...",
+      "quickActions": ["Review action 1", "Review action 2"]
+    },
+    {
       "type": "quiz",
-      "title": "Quiz Title",
-      "recap": "Brief recap of the concept",
-      "scenario": "Practical scenario",
+      "title": "Test Your Knowledge",
+      "recap": "Brief recap sentence",
+      "scenario": "Practical scenario related to ${profile.learningGoal}",
       "question": "The question to answer",
       "kind": "single",
       "options": [
         {"text": "Option 1", "isCorrect": true, "explanation": "Why this is correct"},
         {"text": "Option 2", "isCorrect": false, "explanation": "Why this is wrong"},
-        {"text": "Option 3", "isCorrect": false, "explanation": "Why this is wrong"}
+        {"text": "Option 3", "isCorrect": false, "explanation": "Why this is wrong"},
+        {"text": "Option 4", "isCorrect": false, "explanation": "Why this is wrong"}
       ],
       "penalty_hearts": 1
     }
   ]
 }`;
     } else if (plan.lessonType === "code") {
-      systemPrompt = `You are an expert ${language} developer creating coding challenges.`;
-      userPrompt = `Create a coding challenge about "${plan.topic}" in ${language} for someone working on ${profile.learningGoal}.
+      systemPrompt = `You are an expert ${language} developer creating simple, focused coding challenges.`;
+      userPrompt = `Create a complete coding lesson about "${plan.topic}" in ${language} for someone working on ${profile.learningGoal}.
 
 Context:
 - Job: ${profile.jobStatus}
@@ -116,53 +150,100 @@ Context:
 - Language: ${language}
 - Goal: ${profile.learningGoal}
 
-Generate:
-1. Clear instructions in markdown
-2. Starter code in ${language} with TODO comments
-3. A working solution
-4. 3-4 acceptance criteria
+Generate a lesson with these blocks IN THIS ORDER:
+
+Block 1 - Text instructions (VERY SHORT, 1-2 paragraphs ONLY):
+- Explain what simple function they will write (1 paragraph)
+- Why it's useful (1 paragraph)
+
+Block 2 - Code challenge:
+- ONE simple function to implement (keep it small and focused)
+- Clear, short instructions (3-4 sentences max)
+- Starter code in ${language} with function signature and TODO
+- A working solution (keep it simple, 5-15 lines of code)
+- 2-3 acceptance criteria (short and specific)
+
+IMPORTANT for ${language} code:
+- Keep it SIMPLE - just ONE small function
+- Function should be 5-15 lines, not complex
+- Use proper ${language} syntax ONLY (don't mention other languages)
+- Realistic but simple example
+- Clear and focused task
 
 Format as JSON:
 {
   "blocks": [
     {
+      "type": "text",
+      "title": "Coding Challenge Setup",
+      "markdown": "## Build: ${plan.topic}\\n\\nWhat you'll create and why...",
+      "quickActions": ["Think about the inputs", "Consider edge cases"]
+    },
+    {
       "type": "code",
-      "title": "Challenge Title",
-      "instructions": "Instructions in markdown explaining what to do",
+      "title": "Implement ${plan.topic}",
+      "instructions": "Clear step-by-step instructions in markdown",
       "language": "${language.toLowerCase()}",
-      "starter": "// Starter code template\\nfunction example() {\\n  // TODO: implement\\n}",
-      "solution": "// Working solution\\nfunction example() {\\n  return 'done';\\n}",
-      "acceptanceCriteria": ["Criterion 1", "Criterion 2", "Criterion 3"],
+      "starter": "// Proper ${language} starter code with structure",
+      "solution": "// Complete working solution in ${language}",
+      "acceptanceCriteria": ["Criterion 1", "Criterion 2", "Criterion 3", "Criterion 4"],
       "penalty_hearts": 0
     }
   ]
 }`;
     } else if (plan.lessonType === "mentor") {
       systemPrompt = "You are creating an AI mentor session configuration for interactive learning.";
-      userPrompt = `Create a mentor session about "${plan.topic}" for someone working on ${profile.learningGoal}.
+      userPrompt = `Create a complete mentor lesson about "${plan.topic}" for someone working on ${profile.learningGoal}.
 
 Context:
 - Job: ${profile.jobStatus}
 - Experience: ${profile.codingExperience}
 - Goal: ${profile.learningGoal}
 
-Generate an AI mentor session with:
-1. Clear context about the topic
-2. A prompt that guides the AI to explain and then quiz the learner
-3. Suggested questions they might ask
+Generate a lesson with these blocks IN THIS ORDER:
+
+Block 1 - Text warm-up (VERY SHORT, 1-2 paragraphs ONLY):
+- Quick prep for the mentor session (1 paragraph)
+- One thing to think about (1 paragraph)
+
+Block 2 - AI Mentor Explanation:
+- Context for the AI to explain the concept
+- Prompt for teaching mode
+- 2 suggested questions
+
+Block 3 - AI Mentor Quiz:
+- Context for the AI to quiz them
+- Prompt for examiner mode
+- Goal of 2 correct answers
 
 Format as JSON:
 {
   "blocks": [
     {
+      "type": "text",
+      "title": "Mentor Session Prep",
+      "markdown": "## Get Ready\\n\\nBrief prep for mentor session...",
+      "quickActions": ["Think of a question", "Review the concept"]
+    },
+    {
       "type": "ai-mentor",
       "mode": "explain",
-      "title": "Mentor Session: ${plan.topic}",
+      "title": "Learn with Mentor",
       "persona": "supportive mentor",
-      "lessonContext": "Context for the AI",
+      "lessonContext": "${plan.topic} for ${profile.learningGoal}. Experience: ${profile.codingExperience}",
       "topic": "${plan.topic}",
-      "prompt": "Detailed prompt for the AI mentor",
-      "suggestedQuestions": ["Question 1", "Question 2"]
+      "prompt": "Explain ${plan.topic} using examples from ${profile.learningGoal}. Be practical and use their experience level (${profile.codingExperience}).",
+      "suggestedQuestions": ["Question about concept", "Question about application"]
+    },
+    {
+      "type": "ai-mentor",
+      "mode": "quiz",
+      "title": "Verify Understanding",
+      "persona": "coach",
+      "lessonContext": "${plan.topic} for ${profile.learningGoal}",
+      "topic": "${plan.topic}",
+      "prompt": "Ask 2-3 questions about ${plan.topic} to verify understanding. Wait for correct answers before proceeding.",
+      "quizGoal": 2
     }
   ]
 }`;

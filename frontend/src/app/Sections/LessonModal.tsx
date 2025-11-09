@@ -185,12 +185,22 @@ const LessonModal: React.FC<LessonModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
       <div className="bg-gray-800 rounded-xl  shadow-2xl pt-7 max-w-3xl p-8 relative  flex flex-col">
 
-            <div className=" bg-gray-700 w-7/8 rounded-full h-2.5 mb-4">
-          <div
-            className="bg-cyan-500 h-2.5  rounded-full "
-            style={{ width: `${progress}%`, transition: "width 0.3s ease-in-out" }}
-          ></div>
-          </div>
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-400">
+                  Segment {currentBlockIndex + 1} of {lessonBlocks.length}
+                </span>
+                <span className="text-sm text-gray-400">
+                  {Math.round(progress)}% Complete
+                </span>
+              </div>
+              <div className="bg-gray-700 rounded-full h-2.5">
+                <div
+                  className="bg-cyan-500 h-2.5 rounded-full"
+                  style={{ width: `${progress}%`, transition: "width 0.3s ease-in-out" }}
+                ></div>
+              </div>
+            </div>
 
         <button onClick={onClose} className="absolute top-4  right-4 text-gray-400 hover:text-white transition z-10">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
