@@ -133,7 +133,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
     try {
       const reply = await getAiMentorExplain(
         block.lessonContext,
-        userProfile.experience,
+        userProfile.codingExperience,
         block.persona,
         block.topic,
         block.prompt,

@@ -5,8 +5,12 @@ import ChatWithMentor from "../components/ChatWithMentor";
 import { UserProfile } from "../lib/types";
 
 const defaultProfile: UserProfile = {
-  experience: "Beginner",
-  intensity: "Medium",
+  reason: "",
+  jobStatus: "",
+  codingExperience: "beginner",
+  captivates: "",
+  learningGoal: "",
+  hobbies: [],
 };
 
 export default function ChatPage() {
