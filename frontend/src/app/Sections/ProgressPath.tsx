@@ -113,7 +113,7 @@ const ProgressPath: React.FC<ProgressPathProps> = ({ stages, onStageSelect }) =>
     <div className="container mx-auto max-w-3xl animate-fade-in px-4">
       <h1 className="text-5xl font-extrabold mb-10 text-cyan-300 tracking-tight">Your Learning Roadmap</h1>
       <div className="space-y-6">
-        {topicEntries.map(([topic, lessons], topicIndex) => (
+        {topicEntries.map(([topic], topicIndex) => (
           <div key={topic} className="bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
             <button
               className="w-full text-left text-2xl font-bold text-white flex justify-between items-center p-6 bg-gray-700/50 hover:bg-gray-700 transition-colors duration-200"

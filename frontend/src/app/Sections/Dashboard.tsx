@@ -69,7 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     : "-translate-x-full md:-translate-x-full opacity-0 md:opacity-0 pointer-events-none";
 
   return (
-    <div className="relative flex min-h-screen bg-gray-900">
+    <div className="relative flex bg-gray-900">
       {/* Mobile hamburger */}
       <header
         className={`fixed top-4 left-4 z-40 flex ${
@@ -92,7 +92,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Sidebar + overlay for mobile */}
       <aside
-        className={`absolute inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out bg-linear-to-b from-gray-800/90 to-gray-900/95 shadow-xl w-72 p-5 flex flex-col justify-between md:relative h-full md:h-screen overflow-y-auto md:overflow-hidden ${sidebarTranslate}`}
+        className={`fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out bg-linear-to-b from-gray-800/90 to-gray-900/95 shadow-xl w-72 p-5 flex flex-col justify-between md:sticky md:top-0 md:h-screen overflow-y-auto ${sidebarTranslate}`}
         aria-hidden={!sidebarOpen}
       >
         <div>
@@ -205,7 +205,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
 
       <main
-        className={`flex-1 p-4 pt-20 sm:p-6 md:p-8 md:pt-8 overflow-y-auto bg-gray-900 ml-0`}
+        className={`flex-1 p-4 pt-20 sm:p-6 md:p-8 md:pt-8 bg-gray-900 ml-0 min-h-screen`}
       >
         {activeTab === "Roadmap" && (
           <Roadmap stages={roadmap} onStageSelect={setSelectedLesson} />
@@ -214,7 +214,27 @@ const Dashboard: React.FC<DashboardProps> = ({
           <ChatWithMentor userProfile={userProfile} />
         )}
         {activeTab === "Leaderboard" && <Leaderboard currentUserXp={xp} />}
-        {activeTab === "Profile" && <Profile userProfile={userProfile} />}
+        {activeTab === "Profile" && (
+          <Profile 
+            userProfile={userProfile}
+            xp={xp}
+            streak={streak}
+            lives={lives}
+            roadmap={roadmap}
+            mainTopics={roadmap.map(lesson => lesson.lesson.track).filter((v, i, a) => a.indexOf(v) === i)}
+            onResetRoadmap={() => {
+              if (typeof window !== "undefined") {
+                window.location.reload();
+              }
+            }}
+            onLogout={() => {
+              if (typeof window !== "undefined") {
+                localStorage.clear();
+                window.location.reload();
+              }
+            }}
+          />
+        )}
       </main>
 
       {selectedLesson && (

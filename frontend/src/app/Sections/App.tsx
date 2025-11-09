@@ -26,7 +26,7 @@ const App = () => {
 
   const [lives, setLives] = useState(3);
   const [streak, setStreak] = useState(0);
-  const [xp, setXp] = useState(420);
+  const [xp, setXp] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -203,8 +203,15 @@ const App = () => {
   };
 
   const completeLesson = (lessonId: string, xpReward: number) => {
-    setXp((prev) => prev + xpReward);
     setRoadmap((prevRoadmap) => {
+      const currentLesson = prevRoadmap.find((lesson) => lesson.id === lessonId);
+      
+      // Only give XP if the lesson wasn't already completed
+      if (currentLesson?.status !== StageStatus.Completed) {
+        setXp((prev) => prev + xpReward);
+        setStreak((prev) => (prev === 0 ? 1 : prev));
+      }
+      
       const newRoadmap = prevRoadmap.map((lesson) =>
         lesson.id === lessonId
           ? { ...lesson, status: StageStatus.Completed }
@@ -214,13 +221,17 @@ const App = () => {
       const completedIndex = newRoadmap.findIndex(
         (lesson) => lesson.id === lessonId
       );
+      
+      // Only unlock the next lesson if it's currently locked
       if (completedIndex !== -1 && completedIndex + 1 < newRoadmap.length) {
-        newRoadmap[completedIndex + 1].status = StageStatus.Unlocked;
+        const nextLesson = newRoadmap[completedIndex + 1];
+        if (nextLesson.status === StageStatus.Locked) {
+          newRoadmap[completedIndex + 1].status = StageStatus.Unlocked;
+        }
       }
 
       return newRoadmap;
     });
-    setStreak((prev) => (prev === 0 ? 1 : prev));
   };
 
   const handleResetRoadmap = useCallback(() => {
