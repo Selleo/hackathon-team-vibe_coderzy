@@ -31,6 +31,8 @@ interface DashboardProps {
   loseLife: () => void;
   completeLesson: (lessonId: string, xpReward: number) => void;
   onLessonHydrated: (lessonId: string, blocks: LessonBlock[]) => void;
+  onResetRoadmap: () => void;
+  onLogout: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -43,6 +45,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   loseLife,
   completeLesson,
   onLessonHydrated,
+  onResetRoadmap,
+  onLogout,
 }) => {
   const [activeTab, setActiveTab] = useState("Roadmap");
   const [selectedLesson, setSelectedLesson] = useState<LessonSummary | null>(
@@ -226,17 +230,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             lives={lives}
             roadmap={roadmap}
             mainTopics={mainTopics}
-            onResetRoadmap={() => {
-              if (typeof window !== "undefined") {
-                window.location.reload();
-              }
-            }}
-            onLogout={() => {
-              if (typeof window !== "undefined") {
-                localStorage.clear();
-                window.location.reload();
-              }
-            }}
+            onResetRoadmap={onResetRoadmap}
+            onLogout={onLogout}
           />
         )}
       </main>

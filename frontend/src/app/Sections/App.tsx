@@ -242,18 +242,6 @@ const App = () => {
   };
 
   const handleResetRoadmap = useCallback(() => {
-    setRoadmap([]);
-    setTopicsCompleted(false);
-    setLoadingRoadmap(false);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("roadmap");
-      localStorage.removeItem("roadmapUpdatedAt");
-      localStorage.setItem("topicsCompleted", "false");
-    }
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    setIsLoggedIn(false);
     setSurveyCompleted(false);
     setTopicsCompleted(false);
     setUserProfile(null);
@@ -261,13 +249,11 @@ const App = () => {
     setRoadmap([]);
     setLives(3);
     setStreak(0);
-    setXp(420);
+    setXp(0);
     setLoadingTopics(false);
     setLoadingRoadmap(false);
     if (typeof window !== "undefined") {
       [
-        "userIsLoggedIn",
-        "userEmail",
         "surveyCompleted",
         "topicsCompleted",
         "userProfile",
@@ -276,6 +262,14 @@ const App = () => {
         "lastProfileSync",
         "roadmapUpdatedAt",
       ].forEach((key) => localStorage.removeItem(key));
+    }
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    setIsLoggedIn(false);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("userIsLoggedIn");
+      localStorage.removeItem("userEmail");
     }
   }, []);
 

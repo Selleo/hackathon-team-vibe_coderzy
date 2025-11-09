@@ -140,7 +140,7 @@ const Profile: React.FC<ProfileProps> = ({
   const handleResetClick = () => {
     if (typeof window !== "undefined") {
       const confirmed = window.confirm(
-        "Resetting will clear your generated roadmap and let you choose topics again. Continue?"
+        "This will clear ALL your data including progress, profile, and roadmap. You will start from the survey again. Continue?"
       );
       if (!confirmed) {
         return;
@@ -156,7 +156,7 @@ const Profile: React.FC<ProfileProps> = ({
   const handleLogoutClick = () => {
     if (typeof window !== "undefined") {
       const confirmed = window.confirm(
-        "This will clear your progress and profile data stored in this browser. Are you sure you want to log out?"
+        "Are you sure you want to log out? Your data will be saved and available when you log back in."
       );
       if (!confirmed) {
         return;
@@ -387,7 +387,7 @@ const Profile: React.FC<ProfileProps> = ({
           onClick={handleLogoutClick}
           className="inline-flex items-center justify-center rounded-full border border-red-500/50 bg-red-500/10 px-6 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/20"
         >
-          Log out & clear data
+          Log out
         </button>
       </section>
     </div>
