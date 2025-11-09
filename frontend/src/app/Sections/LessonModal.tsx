@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import AiMentorPanel from "./Components/AiMentorPanel";
 import {
   CodeBlock,
@@ -84,8 +85,25 @@ const LessonModal: React.FC<LessonModalProps> = ({
       case "text":
         return (
           <div>
-            <h3 className="text-2xl pb-4 font-bold text-cyan-300 mb-4">{block.title}</h3>
-            <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{block.markdown}</p>
+            <div className="prose prose-invert prose-cyan max-w-none">
+              <ReactMarkdown
+                components={{
+                  h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
+                  h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3 mt-6" {...props} />,
+                  h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2 mt-4" {...props} />,
+                  p: ({ node, ...props }) => <p className="text-gray-300 leading-relaxed mb-4" {...props} />,
+                  ul: ({ node, ...props }) => <ul className="list-disc list-inside text-gray-300 mb-4 space-y-1" {...props} />,
+                  ol: ({ node, ...props }) => <ol className="list-decimal list-inside text-gray-300 mb-4 space-y-1" {...props} />,
+                  li: ({ node, ...props }) => <li className="text-gray-300" {...props} />,
+                  strong: ({ node, ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
+                  em: ({ node, ...props }) => <em className="italic text-cyan-200" {...props} />,
+                  code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
+                  pre: ({ node, ...props }) => <pre className="bg-gray-800 border border-gray-700 rounded-lg p-4 overflow-x-auto mb-4" {...props} />,
+                }}
+              >
+                {block.markdown}
+              </ReactMarkdown>
+            </div>
             {block.quickActions && (
               <ul className="mt-4 space-y-2 rounded-lg bg-gray-900/40 p-4 text-sm text-gray-200">
                 {block.quickActions.map((action) => (
@@ -209,10 +227,20 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
 
   return (
     <div>
-      <h3 className="text-xl font-bold text-cyan-300 mb-2">{block.title}</h3>
-      <p className="text-sm text-gray-400 mb-1">{block.recap}</p>
-      <p className="text-sm text-gray-400 mb-4">{block.scenario}</p>
-      <p className="text-gray-100 mb-6 font-semibold">{block.question}</p>
+      <div className="prose prose-invert prose-cyan max-w-none mb-6">
+        <ReactMarkdown
+          components={{
+            h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
+            h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3" {...props} />,
+            h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2" {...props} />,
+            p: ({ node, ...props }) => <p className="text-gray-300 mb-3" {...props} />,
+            strong: ({ node, ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
+            code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
+          }}
+        >
+          {`### ${block.title}\n\n${block.recap}\n\n${block.scenario}\n\n**${block.question}**`}
+        </ReactMarkdown>
+      </div>
       <div className="space-y-3">
         {block.options.map((option, index) => (
           <button
@@ -261,62 +289,131 @@ const CodeComponent: React.FC<{
   block: CodeBlock;
   onContinue: () => void;
 }> = ({ block, onContinue }) => {
+  const [userCode, setUserCode] = useState(block.starter);
   const [showSolution, setShowSolution] = useState(false);
-  const [checked, setChecked] = useState<boolean[]>(
-    block.acceptanceCriteria.map(() => false),
-  );
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ passed: boolean; feedback: string; deduct_heart: boolean } | null>(null);
 
-  const allChecked = checked.every(Boolean);
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setFeedback(null);
+    
+    try {
+      const response = await fetch("/api/mentor/examiner", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lessonContext: `${block.instructions}\n\nLanguage: ${block.language || 'javascript'}\n\nAcceptance Criteria:\n${block.acceptanceCriteria.join('\n')}`,
+          proficiency: "beginner",
+          userCode: userCode,
+        }),
+      });
 
-  const toggleCriterion = (index: number) => {
-    setChecked((prev) => {
-      const next = [...prev];
-      next[index] = !next[index];
-      return next;
-    });
+      const data = await response.json();
+      setFeedback(data);
+    } catch (error) {
+      console.error("Error submitting code:", error);
+      setFeedback({
+        passed: false,
+        feedback: "Failed to validate code. Please try again.",
+        deduct_heart: false,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div>
-      <h3 className="text-2xl font-bold text-cyan-300 mb-2">{block.title}</h3>
-      <p className="text-gray-300 mb-4 whitespace-pre-wrap">{block.instructions}</p>
-      <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm border border-gray-700 whitespace-pre-wrap">
-        {block.starter}
+      <div className="prose prose-invert prose-cyan max-w-none mb-4">
+        <ReactMarkdown
+          components={{
+            h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
+            h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3" {...props} />,
+            h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2" {...props} />,
+            p: ({ node, ...props }) => <p className="text-gray-300 mb-3" {...props} />,
+            strong: ({ node, ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
+            ul: ({ node, ...props }) => <ul className="list-disc list-inside text-gray-300 mb-3 space-y-1" {...props} />,
+            li: ({ node, ...props }) => <li className="text-gray-300" {...props} />,
+            code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
+          }}
+        >
+          {`### ${block.title}\n\n${block.instructions}\n\n**Acceptance Criteria:**\n\n${block.acceptanceCriteria.map(c => `- ${c}`).join('\n')}`}
+        </ReactMarkdown>
       </div>
-      <button
-        onClick={() => setShowSolution((prev) => !prev)}
-        className="mt-3 text-sm text-cyan-300 underline decoration-dotted"
-      >
-        {showSolution ? "Hide sample plan" : "Show sample plan"}
-      </button>
+
+      <div className="mb-3">
+        <div className="flex justify-between items-center mb-2">
+          <label className="block text-sm font-medium text-gray-300">Your Code:</label>
+          {block.language && (
+            <span className="text-xs px-2 py-1 rounded bg-cyan-900/50 text-cyan-300 border border-cyan-700/50">
+              {block.language}
+            </span>
+          )}
+        </div>
+        <textarea
+          value={userCode}
+          onChange={(e) => setUserCode(e.target.value)}
+          className="w-full h-64 bg-gray-900 rounded-lg p-4 font-mono text-sm border border-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
+          placeholder="Write your code here..."
+          disabled={feedback?.passed}
+          spellCheck={false}
+        />
+      </div>
+
+      <div className="flex gap-2 mb-3">
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || feedback?.passed}
+          className="flex-1 rounded-lg bg-cyan-600 py-3 font-bold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-gray-600"
+        >
+          {submitting ? "Validating..." : "Submit Code"}
+        </button>
+        <button
+          onClick={() => setShowSolution((prev) => !prev)}
+          className="px-4 py-3 text-sm text-cyan-300 border border-cyan-700 rounded-lg hover:bg-cyan-900/30 transition"
+        >
+          {showSolution ? "Hide Solution" : "Show Solution"}
+        </button>
+      </div>
+
       {showSolution && (
-        <div className="mt-3 rounded-lg border border-cyan-700/40 bg-gray-900/60 p-4 font-mono text-sm whitespace-pre-wrap">
+        <div className="mb-3 rounded-lg border border-cyan-700/40 bg-gray-900/60 p-4 font-mono text-sm whitespace-pre-wrap text-gray-300">
           {block.solution}
         </div>
       )}
-      <div className="mt-4 space-y-2">
-        {block.acceptanceCriteria.map((criterion, index) => (
-          <label
-            key={criterion}
-            className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-700/60 bg-gray-900/40 p-3 text-sm text-gray-200"
-          >
-            <input
-              type="checkbox"
-              checked={checked[index]}
-              onChange={() => toggleCriterion(index)}
-              className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-cyan-500 focus:ring-cyan-500"
-            />
-            <span>{criterion}</span>
-          </label>
-        ))}
-      </div>
-      <button
-        onClick={onContinue}
-        disabled={!allChecked}
-        className="mt-5 w-full rounded-lg bg-cyan-600 py-3 font-bold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:bg-gray-600"
-      >
-        Continue
-      </button>
+
+      {feedback && (
+        <div className={`p-4 rounded-lg mb-3 ${feedback.passed ? "bg-emerald-900/30 border border-emerald-500/50" : "bg-red-900/30 border border-red-500/50"}`}>
+          <p className={`font-bold text-lg mb-2 ${feedback.passed ? "text-emerald-400" : "text-red-400"}`}>
+            {feedback.passed ? "✓ Code Accepted!" : "✗ Needs Improvement"}
+          </p>
+          <div className="prose prose-invert prose-sm max-w-none">
+            <ReactMarkdown
+              components={{
+                p: ({ node, ...props }) => <p className="text-gray-300 mb-2" {...props} />,
+                ul: ({ node, ...props }) => <ul className="list-disc list-inside text-gray-300 mb-2" {...props} />,
+                li: ({ node, ...props }) => <li className="text-gray-300" {...props} />,
+                strong: ({ node, ...props }) => <strong className="font-bold text-gray-100" {...props} />,
+                code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1 py-0.5 rounded text-xs font-mono" {...props} />,
+              }}
+            >
+              {feedback.feedback}
+            </ReactMarkdown>
+          </div>
+        </div>
+      )}
+
+      {feedback?.passed && (
+        <button
+          onClick={onContinue}
+          className="w-full rounded-lg bg-cyan-600 py-3 font-bold text-white transition hover:bg-cyan-500"
+        >
+          Continue
+        </button>
+      )}
     </div>
   );
 };

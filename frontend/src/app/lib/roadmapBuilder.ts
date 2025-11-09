@@ -42,7 +42,7 @@ export const generateTopicsFallback = (profile: UserProfile): string[] => {
   return scaffolding.length ? scaffolding : [introFriendlyTopic(profile)];
 };
 
-const baseSequence: LessonPlan["lessonType"][] = ["text", "quiz", "code", "mentor"];
+const baseSequence: LessonPlan["lessonType"][] = ["text", "code", "quiz", "code", "mentor"];
 
 const rotateSequence = (shift: number) =>
   baseSequence.map((_, index) => baseSequence[(index + shift) % baseSequence.length]);
@@ -167,7 +167,7 @@ export const generateRoadmapPlan = (
   validTopics.forEach((topic, topicIndex) => {
     const sanitizedTopic = topic.trim() || introFriendlyTopic(profile);
     const isIntro = INTRO_PATTERN.test(sanitizedTopic);
-    const lessonCount = Math.max(3, isIntro ? 3 : 4);
+    const lessonCount = Math.max(5, isIntro ? 4 : 5);
     const sequence = isIntro ? baseSequence : rotateSequence(topicIndex % baseSequence.length);
 
     for (let lessonIndex = 0; lessonIndex < lessonCount; lessonIndex += 1) {

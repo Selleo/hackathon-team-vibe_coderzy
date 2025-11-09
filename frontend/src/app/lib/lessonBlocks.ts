@@ -8,7 +8,7 @@ import {
   TextBlock,
   UserProfile,
 } from "./types";
-import { buildProfileHooks } from "./profileUtils";
+import { buildProfileHooks, deriveLanguageFromProfile } from "./profileUtils";
 
 type ProfileHooks = ReturnType<typeof buildProfileHooks>;
 
@@ -124,33 +124,95 @@ const buildCodeBlock = (
     starter?: string[];
     solution?: string[];
     acceptanceCriteria?: string[];
+    language?: "javascript" | "python" | "typescript";
   },
 ): CodeBlock => {
   const hooks = buildProfileHooks(profile);
-  const starterLines =
-    overrides?.starter ??
-    [
-      "plan BuildFeature:",
-      `  define goal -> "${hooks.shortGoal}"`,
-      `  outline component using ${plan.topic}`,
-      "  mark where to inject personalization",
-    ];
-  const solutionLines =
-    overrides?.solution ??
-    [
-      "plan BuildFeature:",
-      `  step one: capture '${hooks.reason.toLowerCase()}' in a note`,
-      "  step two: map data/state needed",
-      "  step three: describe outcome + testing hook",
-      "end",
-    ];
+  const language = overrides?.language ?? deriveLanguageFromProfile(profile);
+  
+  const getStarterCode = () => {
+    if (language === "python") {
+      return [
+        "# TODO: Implement your solution here",
+        `def build_feature():`,
+        `    """${plan.topic} for ${hooks.projectLabel}"""`,
+        `    # Write your code here`,
+        `    pass`,
+      ];
+    } else if (language === "typescript") {
+      return [
+        "// TODO: Implement your solution here",
+        `function buildFeature(): void {`,
+        `  // ${plan.topic} for ${hooks.projectLabel}`,
+        `  // Write your code here`,
+        `}`,
+      ];
+    } else {
+      return [
+        "// TODO: Implement your solution here",
+        `function buildFeature() {`,
+        `  // ${plan.topic} for ${hooks.projectLabel}`,
+        `  // Write your code here`,
+        `}`,
+      ];
+    }
+  };
+
+  const getSolutionCode = () => {
+    if (language === "python") {
+      return [
+        `def build_feature():`,
+        `    """${plan.topic} implementation for ${hooks.projectLabel}"""`,
+        `    # Step 1: Setup`,
+        `    config = {"goal": "${hooks.shortGoal}"}`,
+        `    `,
+        `    # Step 2: Process ${plan.topic}`,
+        `    result = process_data(config)`,
+        `    `,
+        `    # Step 3: Return result`,
+        `    return result`,
+      ];
+    } else if (language === "typescript") {
+      return [
+        `interface Config {`,
+        `  goal: string;`,
+        `}`,
+        ``,
+        `function buildFeature(): any {`,
+        `  // ${plan.topic} implementation for ${hooks.projectLabel}`,
+        `  const config: Config = { goal: "${hooks.shortGoal}" };`,
+        `  `,
+        `  // Process ${plan.topic}`,
+        `  const result = processData(config);`,
+        `  `,
+        `  return result;`,
+        `}`,
+      ];
+    } else {
+      return [
+        `function buildFeature() {`,
+        `  // ${plan.topic} implementation for ${hooks.projectLabel}`,
+        `  const config = { goal: "${hooks.shortGoal}" };`,
+        `  `,
+        `  // Process ${plan.topic}`,
+        `  const result = processData(config);`,
+        `  `,
+        `  return result;`,
+        `}`,
+      ];
+    }
+  };
+
+  const starterLines = overrides?.starter ?? getStarterCode();
+  const solutionLines = overrides?.solution ?? getSolutionCode();
 
   const acceptanceCriteria =
     overrides?.acceptanceCriteria ??
     [
-      `List 2-3 steps that map ${plan.topic} to ${hooks.projectLabel}.`,
-      "Mark at least one line where you will personalize text or data.",
-      "State how you will validate the behaviour (manual or automated).",
+      `Implement a function that demonstrates ${plan.topic}.`,
+      `Code should be related to ${hooks.projectLabel}.`,
+      `Include comments explaining your approach.`,
+      `Make sure the code is syntactically correct.`,
     ];
 
   return {
@@ -158,8 +220,8 @@ const buildCodeBlock = (
     title: overrides?.title ?? plan.title,
     instructions:
       overrides?.instructions ??
-      `Sketch a short pseudocode plan for ${plan.topic}. Keep it under six lines so you can adapt it to any language later.`,
-    language: "pseudocode",
+      `Write real ${language} code that implements ${plan.topic}. Focus on making it work for ${hooks.projectLabel}.`,
+    language,
     starter: starterLines.join("\n"),
     solution: solutionLines.join("\n"),
     acceptanceCriteria,
@@ -293,16 +355,18 @@ export const buildBlocksFromPlan = (plan: LessonPlan, profile: UserProfile): Les
 
   if (plan.lessonType === "code") {
     const overview = buildTextBlock(plan, profile, {
-      title: `${plan.title} · plan overview`,
+      title: `${plan.title} · coding challenge`,
       customLines: [
-        `Keep the sketch tiny so you can adapt it no matter the language.`,
-        `Use ${hooks.projectLabel} as the anchor so you don't drift into generic steps.`,
+        `Write real, working code that implements ${plan.topic}.`,
+        `Use ${hooks.projectLabel} as context to make your solution practical and relevant.`,
+        `The AI will review your code and provide feedback.`,
       ],
       quickActions: [
-        `List the inputs you have today for ${hooks.projectLabel}.`,
-        `Circle the step that feels riskiest and star it.`,
+        `Think about how ${plan.topic} applies to ${hooks.projectLabel}.`,
+        `Consider what inputs and outputs your function needs.`,
+        `Plan your approach before writing code.`,
       ],
-      snippet: "<pseudo>draft()</pseudo>",
+      snippet: null,
     });
 
     const planBlock = buildCodeBlock(plan, profile);
@@ -310,12 +374,13 @@ export const buildBlocksFromPlan = (plan: LessonPlan, profile: UserProfile): Les
     const reflection = buildTextBlock(plan, profile, {
       title: "Reflect & adapt",
       customLines: [
-        `Does the plan still serve ${hooks.shortGoal}? Trim anything that doesn't.`,
-        `Decide how you'll validate success—demoing to a friend, writing a test, or narrating it in the mentor chat.`,
+        `Does your solution align with ${hooks.shortGoal}?`,
+        `Think about how you could improve or extend this code.`,
+        `Consider how this applies to real-world scenarios in ${hooks.projectLabel}.`,
       ],
       quickActions: [
-        "Add one note about personalization for your hobby or work context.",
-        "Schedule when you'll revisit this plan after building.",
+        "Note one way you could make this code more robust.",
+        "Think about edge cases or potential improvements.",
       ],
       snippet: null,
     });
