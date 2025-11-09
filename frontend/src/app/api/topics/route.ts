@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { UserProfile } from "@/app/lib/types";
+import { UserProfile } from "../../lib/types";
+import { generateTopicsFallback } from "../../lib/roadmapBuilder";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
@@ -18,14 +19,12 @@ const responseSchema = {
 };
 
 export async function POST(req: Request) {
-  if (!OPENAI_API_KEY) {
-    return NextResponse.json(
-      { error: "OPENAI_API_KEY is not configured on the server." },
-      { status: 500 },
-    );
-  }
-
   const profile = (await req.json()) as UserProfile;
+  const fallbackTopics = generateTopicsFallback(profile);
+
+  if (!OPENAI_API_KEY) {
+    return NextResponse.json({ topics: fallbackTopics, source: "fallback" });
+  }
 
   const payload = {
     model: "gpt-4o-mini",
@@ -41,19 +40,19 @@ export async function POST(req: Request) {
       {
         role: "system",
         content:
-          "You are a curriculum generator. Based on the user's profile, generate a list of 5-7 topics they should learn. The topics should be in a logical order, starting from the basics and moving to more advanced topics. The topics should be relevant to the user's learning goal and coding experience.",
+          "You are a curriculum generator. Produce 5-7 topics ordered from foundational to advanced. Each topic must be self-contained, specific, and reference the learner's context (reason, job, hobby, goal).",
       },
       {
         role: "user",
-        content: `Generate a list of topics for a user with the following profile:
-- Reason for studying: ${profile.reason}
+        content: `Learner profile:
+- Reason: ${profile.reason}
 - Job status: ${profile.jobStatus}
 - Coding experience: ${profile.codingExperience}
-- What captivates them about coding: ${profile.captivates}
+- Captivated by: ${profile.captivates}
 - Learning goal: ${profile.learningGoal}
-- Hobbies: ${profile.hobbies.join(", ")}
+- Hobbies: ${profile.hobbies.join(", ") || "None listed"}
 
-Please generate a list of 5-7 topics that would be a good starting point for this user. The topics should be specific and actionable. For example, instead of "JavaScript", suggest "JavaScript Fundamentals (Variables, Data Types, Functions)".`,
+Return only topic titles (no descriptions). Ensure the list covers fundamentals, practice, and review.`,
       },
     ],
   };
@@ -72,13 +71,26 @@ Please generate a list of 5-7 topics that would be a good starting point for thi
 
     if (!response.ok) {
       console.error("OpenAI topics error", data);
-      return NextResponse.json({ error: "Failed to contact OpenAI." }, { status: 502 });
+      return NextResponse.json({ topics: fallbackTopics, source: "fallback" });
     }
 
-    const content = JSON.parse(data.choices?.[0]?.message?.content);
-    return NextResponse.json(content);
+    const contentRaw = data.choices?.[0]?.message?.content;
+    let parsed: unknown = null;
+    try {
+      parsed = contentRaw ? JSON.parse(contentRaw) : null;
+    } catch {
+      parsed = null;
+    }
+    const topics =
+      parsed && typeof parsed === "object" && "topics" in parsed
+        ? (parsed as { topics?: string[] }).topics ?? []
+        : [];
+    if (!Array.isArray(topics) || topics.length < 5) {
+      return NextResponse.json({ topics: fallbackTopics, source: "fallback" });
+    }
+    return NextResponse.json({ topics, source: "openai" });
   } catch (error) {
     console.error("Topics route error", error);
-    return NextResponse.json({ error: "Unexpected error calling OpenAI." }, { status: 500 });
+    return NextResponse.json({ topics: fallbackTopics, source: "fallback" });
   }
 }

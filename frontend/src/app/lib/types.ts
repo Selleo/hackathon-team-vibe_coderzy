@@ -15,6 +15,29 @@ export enum StageStatus {
 
 export type BlockType = "text" | "quiz" | "code" | "mentor" | "ai-mentor";
 
+export type LessonTemplateId =
+  | "text-foundation"
+  | "text-deepening"
+  | "quiz-scenario"
+  | "code-plan"
+  | "mentor-duo";
+
+export interface LessonPlan {
+  templateId: LessonTemplateId;
+  lessonType: "text" | "quiz" | "code" | "mentor";
+  topic: string;
+  title: string;
+  description: string;
+  focus: string;
+  tone?: string;
+  scenario?: string;
+  quickActions?: string[];
+  snippetTag?: string;
+  persona?: string;
+  prompt?: string;
+  emphasis?: string;
+}
+
 export interface BaseBlock {
   type: BlockType;
 }
@@ -23,6 +46,8 @@ export interface TextBlock extends BaseBlock {
   type: "text";
   title: string;
   markdown: string;
+  quickActions?: string[];
+  snippet?: string;
 }
 
 export interface QuizOption {
@@ -33,26 +58,23 @@ export interface QuizOption {
 
 export interface QuizBlock extends BaseBlock {
   type: "quiz";
+  title: string;
+  recap: string;
+  scenario: string;
   question: string;
   kind: "single" | "multi" | "code-output" | "ordering";
   options: QuizOption[];
   penalty_hearts: number;
 }
 
-export interface CodeTest {
-  name: string;
-  hidden: boolean;
-  run: string;
-}
-
 export interface CodeBlock extends BaseBlock {
   type: "code";
   title: string;
   instructions: string;
-  language: "javascript";
+  language?: "pseudocode" | "text";
   starter: string;
   solution: string;
-  tests: CodeTest[];
+  acceptanceCriteria: string[];
   penalty_hearts: number;
 }
 
@@ -94,6 +116,7 @@ export interface Lesson {
   xp_reward: number;
   prerequisites: string[];
   blocks: LessonBlock[];
+  plan: LessonPlan;
 }
 
 export interface LessonSummary {

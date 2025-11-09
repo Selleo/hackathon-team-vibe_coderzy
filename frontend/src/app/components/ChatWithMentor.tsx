@@ -17,15 +17,20 @@ interface ChatWithMentorProps {
   userProfile: UserProfile;
 }
 
+const createIntroMessage = (profile: UserProfile): Message => {
+  const hobbyText = profile.hobbies?.length
+    ? `On the side you enjoy ${profile.hobbies.join(", ")}`
+    : "You mentioned you're ready to spin up a side project";
+  return {
+    id: "intro",
+    role: "assistant",
+    content: `Hi! I see you're a ${profile.jobStatus.toLowerCase()} aiming to ${profile.learningGoal}. You're learning for "${profile.reason}", love ${profile.captivates.toLowerCase()}, and rated yourself as ${profile.codingExperience}. ${hobbyText}, so feel free to bring that into our chats. How can I help right now?`,
+    timestamp: new Date(),
+  };
+};
+
 const ChatWithMentor: React.FC<ChatWithMentorProps> = ({ userProfile }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content: `Hi there! I'm your programming mentor, here to support your learning journey. I've reviewed your profile and I'm ready to help with any questions you have. What would you like to explore today?`,
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([createIntroMessage(userProfile)]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -37,6 +42,10 @@ const ChatWithMentor: React.FC<ChatWithMentorProps> = ({ userProfile }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    setMessages([createIntroMessage(userProfile)]);
+  }, [userProfile]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;

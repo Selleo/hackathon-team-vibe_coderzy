@@ -3,9 +3,9 @@
 from datetime import datetime
 from typing import Literal
 
-
 import toml
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 health_router = APIRouter()
 vibe_router = APIRouter()

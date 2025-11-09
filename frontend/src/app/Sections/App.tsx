@@ -4,15 +4,20 @@ import { useState, useCallback, useEffect } from "react";
 import Dashboard from "./Dashboard";
 import Survey from "./Survey";
 import MainTopics from "./MainTopics";
-import { LessonSummary, StageStatus, UserProfile } from "../lib/types";
+import { LessonBlock, LessonPlan, LessonSummary, StageStatus, UserProfile } from "../lib/types";
+import { generateRoadmapPlan, generateTopicsFallback } from "../lib/roadmapBuilder";
 
 interface StoredLessonSummary extends Omit<LessonSummary, "status"> {
   status: StageStatus;
 }
 
 interface RoadmapLessonResponse {
+  id: string;
   title: string;
-  description: string;
+  topic: string;
+  status: StageStatus;
+  xp_reward: number;
+  plan: LessonPlan;
 }
 
 const App = () => {
@@ -34,49 +39,49 @@ const App = () => {
       return;
     }
 
-    try {
-      const storedSurveyCompleted = localStorage.getItem("surveyCompleted");
-      if (storedSurveyCompleted === "true") {
-        setSurveyCompleted(true);
+    const safeParse = <T,>(key: string): T | null => {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw) as T;
+      } catch (error) {
+        console.warn(`Failed to parse ${key}`, error);
+        localStorage.removeItem(key);
+        return null;
       }
+    };
 
-      const storedTopicsCompleted = localStorage.getItem("topicsCompleted");
-      if (storedTopicsCompleted === "true") {
-        setTopicsCompleted(true);
-      }
-
-      const storedUserProfile = localStorage.getItem("userProfile");
-      if (storedUserProfile) {
-        setUserProfile(JSON.parse(storedUserProfile));
-      }
-
-      const storedMainTopics = localStorage.getItem("mainTopics");
-      if (storedMainTopics) {
-        const parsedTopics = JSON.parse(storedMainTopics);
-        if (Array.isArray(parsedTopics)) {
-          setMainTopics(parsedTopics);
-        }
-      }
-
-      const storedRoadmap = localStorage.getItem("roadmap");
-      if (storedRoadmap) {
-        const parsedRoadmap = JSON.parse(
-          storedRoadmap
-        ) as StoredLessonSummary[];
-        if (Array.isArray(parsedRoadmap)) {
-          setRoadmap(
-            parsedRoadmap.map((lesson) => ({
-              ...lesson,
-              status: lesson.status as StageStatus,
-            }))
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error loading persisted user data:", error);
-    } finally {
-      setIsHydrated(true);
+    const storedSurveyCompleted = localStorage.getItem("surveyCompleted");
+    if (storedSurveyCompleted === "true") {
+      setSurveyCompleted(true);
     }
+
+    const storedTopicsCompleted = localStorage.getItem("topicsCompleted");
+    if (storedTopicsCompleted === "true") {
+      setTopicsCompleted(true);
+    }
+
+    const storedUserProfile = safeParse<UserProfile>("userProfile");
+    if (storedUserProfile) {
+      setUserProfile(storedUserProfile);
+    }
+
+    const storedMainTopics = safeParse<string[]>("mainTopics");
+    if (storedMainTopics) {
+      setMainTopics(Array.isArray(storedMainTopics) ? storedMainTopics : []);
+    }
+
+    const storedRoadmap = safeParse<StoredLessonSummary[]>("roadmap");
+    if (storedRoadmap) {
+      setRoadmap(
+        storedRoadmap.map((lesson) => ({
+          ...lesson,
+          status: lesson.status as StageStatus,
+        }))
+      );
+    }
+
+    setIsHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -139,64 +144,82 @@ const App = () => {
         body: JSON.stringify(profile),
       });
       const data = await response.json();
-      setMainTopics(Array.isArray(data.topics) ? data.topics : []);
+      const topics = Array.isArray(data?.topics)
+        ? data.topics
+        : generateTopicsFallback(profile);
+      setMainTopics(topics);
     } catch (error) {
       console.error("Error fetching topics:", error);
-      // Handle error, maybe set some default topics
+      setMainTopics(generateTopicsFallback(profile));
     } finally {
       setLoadingTopics(false);
     }
   }, []);
 
-  const handleTopicsComplete = useCallback(async (topics: string[]) => {
-    setMainTopics(topics);
-    setTopicsCompleted(true);
-    setLoadingRoadmap(true);
-    try {
-      let newRoadmap: LessonSummary[] = [];
-      for (const topic of topics) {
+  const handleTopicsComplete = useCallback(
+    async (topics: string[]) => {
+      if (!userProfile) {
+        console.warn("Cannot generate roadmap without profile.");
+        return;
+      }
+      setMainTopics(topics);
+      setTopicsCompleted(true);
+      setLoadingRoadmap(true);
+      try {
         const response = await fetch("/api/roadmap", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ topic }),
+          body: JSON.stringify({ topics, profile: userProfile }),
         });
         const data = await response.json();
-        const lessons: RoadmapLessonResponse[] = Array.isArray(data.lessons)
+        const lessons: RoadmapLessonResponse[] = Array.isArray(data?.lessons)
           ? data.lessons
-          : [];
-        const topicLessons: LessonSummary[] = lessons.map((lesson) => ({
-          id: `${topic}-${lesson.title}`,
+          : generateRoadmapPlan(userProfile, topics);
+        const roadmapEntries = lessons.map((lesson, index) => ({
+          id: lesson.id,
           title: lesson.title,
-          status: StageStatus.Unlocked,
+          status: lesson.status ?? (index === 0 ? StageStatus.Unlocked : StageStatus.Locked),
           lesson: {
-            id: `${topic}-${lesson.title}`,
+            id: lesson.id,
             title: lesson.title,
-            track: topic,
-            chapter: topic,
+            track: lesson.topic,
+            chapter: lesson.topic,
             estimated_minutes: 10,
-            xp_reward: 20,
-            prerequisites: [] as string[],
-            blocks: [
-              {
-                type: "text" as const,
-                title: lesson.title,
-                markdown: lesson.description,
-              },
-            ],
+            xp_reward: lesson.xp_reward ?? 20,
+            prerequisites: [],
+            blocks: [],
+            plan: lesson.plan,
           },
         }));
-        newRoadmap = [...newRoadmap, ...topicLessons];
-        setRoadmap(newRoadmap);
+        setRoadmap(roadmapEntries);
+      } catch (error) {
+        console.error("Error fetching roadmap:", error);
+        const fallback = generateRoadmapPlan(userProfile, topics);
+        const entries = fallback.map((lesson) => ({
+          id: lesson.id,
+          title: lesson.title,
+          status: lesson.status,
+          lesson: {
+            id: lesson.id,
+            title: lesson.title,
+            track: lesson.topic,
+            chapter: lesson.topic,
+            estimated_minutes: 10,
+            xp_reward: lesson.xp_reward,
+            prerequisites: [],
+            blocks: [],
+            plan: lesson.plan,
+          },
+        }));
+        setRoadmap(entries);
+      } finally {
+        setLoadingRoadmap(false);
       }
-    } catch (error) {
-      console.error("Error fetching roadmap:", error);
-      // Handle error, maybe set a default roadmap
-    } finally {
-      setLoadingRoadmap(false);
-    }
-  }, []);
+    },
+    [userProfile],
+  );
 
   const loseLife = () => {
     setLives((prev) => Math.max(0, prev - 1));
@@ -234,6 +257,19 @@ const App = () => {
     });
   };
 
+  const handleLessonHydrated = useCallback((lessonId: string, blocks: LessonBlock[]) => {
+    setRoadmap((prev) =>
+      prev.map((lesson) =>
+        lesson.id === lessonId
+          ? {
+              ...lesson,
+              lesson: { ...lesson.lesson, blocks },
+            }
+          : lesson,
+      ),
+    );
+  }, []);
+
   const handleResetRoadmap = useCallback(() => {
     setRoadmap([]);
     setTopicsCompleted(false);
@@ -253,7 +289,7 @@ const App = () => {
     setRoadmap([]);
     setLives(3);
     setStreak(0);
-    setXp(420);
+    setXp(0);
     setLoadingTopics(false);
     setLoadingRoadmap(false);
     if (typeof window !== "undefined") {
@@ -306,6 +342,7 @@ const App = () => {
             loseLife={loseLife}
             completeLesson={completeLesson}
             userProfile={userProfile}
+            onLessonHydrated={handleLessonHydrated}
             onResetRoadmap={handleResetRoadmap}
             onLogout={handleLogout}
             mainTopics={mainTopics}

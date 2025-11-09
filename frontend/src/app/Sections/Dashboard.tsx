@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LessonSummary, UserProfile } from "../lib/types";
+import { LessonBlock, LessonSummary, UserProfile } from "../lib/types";
 import LessonModal from "./LessonModal";
 import Roadmap from "./Roadmap";
 import Leaderboard from "./Components/Leaderboard";
@@ -27,8 +27,10 @@ interface DashboardProps {
   xp: number;
   roadmap: LessonSummary[];
   userProfile: UserProfile;
+  mainTopics: string[];
   loseLife: () => void;
   completeLesson: (lessonId: string, xpReward: number) => void;
+  onLessonHydrated: (lessonId: string, blocks: LessonBlock[]) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -37,8 +39,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   xp,
   roadmap,
   userProfile,
+  mainTopics,
   loseLife,
   completeLesson,
+  onLessonHydrated,
 }) => {
   const [activeTab, setActiveTab] = useState("Roadmap");
   const [selectedLesson, setSelectedLesson] = useState<LessonSummary | null>(
@@ -221,7 +225,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             streak={streak}
             lives={lives}
             roadmap={roadmap}
-            mainTopics={roadmap.map(lesson => lesson.lesson.track).filter((v, i, a) => a.indexOf(v) === i)}
+            mainTopics={mainTopics}
             onResetRoadmap={() => {
               if (typeof window !== "undefined") {
                 window.location.reload();
@@ -244,6 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           onComplete={completeLesson}
           loseLife={loseLife}
           userProfile={userProfile}
+          onHydrated={onLessonHydrated}
         />
       )}
     </div>
