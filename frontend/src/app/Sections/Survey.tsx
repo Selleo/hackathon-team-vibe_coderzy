@@ -35,7 +35,7 @@ const Survey: React.FC<SurveyProps> = ({ onComplete }) => {
     }
   };
 
-  const progress = (step / 6) * 100;
+  const progress = (step / 6.5) * 100;
 
   const renderStep = () => {
     switch (step) {
