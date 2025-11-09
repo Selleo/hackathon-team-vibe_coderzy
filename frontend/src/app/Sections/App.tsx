@@ -5,7 +5,7 @@ import Dashboard from "./Dashboard";
 import Survey from "./Survey";
 import MainTopics from "./MainTopics";
 import Login from "./Login";
-import { LessonSummary, StageStatus, UserProfile } from "../lib/types";
+import { LessonBlock, LessonSummary, StageStatus, UserProfile } from "../lib/types";
 
 interface StoredLessonSummary extends Omit<LessonSummary, "status"> {
   status: StageStatus;
@@ -160,50 +160,44 @@ const App = () => {
     setTopicsCompleted(true);
     setLoadingRoadmap(true);
     try {
-      let newRoadmap: LessonSummary[] = [];
-      for (const topic of topics) {
-        const response = await fetch("/api/roadmap", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ topic }),
-        });
-        const data = await response.json();
-        const lessons: RoadmapLessonResponse[] = Array.isArray(data.lessons)
-          ? data.lessons
-          : [];
-        const topicLessons: LessonSummary[] = lessons.map((lesson) => ({
-          id: `${topic}-${lesson.title}`,
+      const response = await fetch("/api/roadmap", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          topics,
+          profile: userProfile 
+        }),
+      });
+      const data = await response.json();
+      const lessons = Array.isArray(data.lessons) ? data.lessons : [];
+      
+      const newRoadmap: LessonSummary[] = lessons.map((lesson: any) => ({
+        id: lesson.id,
+        title: lesson.title,
+        status: lesson.status,
+        lesson: {
+          id: lesson.id,
           title: lesson.title,
-          status: StageStatus.Unlocked,
-          lesson: {
-            id: `${topic}-${lesson.title}`,
-            title: lesson.title,
-            track: topic,
-            chapter: topic,
-            estimated_minutes: 10,
-            xp_reward: 20,
-            prerequisites: [] as string[],
-            blocks: [
-              {
-                type: "text" as const,
-                title: lesson.title,
-                markdown: lesson.description,
-              },
-            ],
-          },
-        }));
-        newRoadmap = [...newRoadmap, ...topicLessons];
-        setRoadmap(newRoadmap);
-      }
+          track: lesson.topic,
+          chapter: lesson.topic,
+          estimated_minutes: 10,
+          xp_reward: lesson.xp_reward,
+          prerequisites: [] as string[],
+          blocks: [],
+          lessonType: lesson.plan?.lessonType,
+          plan: lesson.plan,
+        },
+      }));
+      
+      setRoadmap(newRoadmap);
     } catch (error) {
       console.error("Error fetching roadmap:", error);
-      // Handle error, maybe set a default roadmap
     } finally {
       setLoadingRoadmap(false);
     }
-  }, []);
+  }, [userProfile]);
 
   const loseLife = () => {
     setLives((prev) => Math.max(0, prev - 1));
@@ -240,6 +234,16 @@ const App = () => {
       return newRoadmap;
     });
   };
+
+  const handleLessonHydrated = useCallback((lessonId: string, blocks: LessonBlock[]) => {
+    setRoadmap((prevRoadmap) => 
+      prevRoadmap.map((lesson) =>
+        lesson.id === lessonId
+          ? { ...lesson, lesson: { ...lesson.lesson, blocks } }
+          : lesson
+      )
+    );
+  }, []);
 
   const handleResetRoadmap = useCallback(() => {
     setSurveyCompleted(false);
@@ -319,6 +323,7 @@ const App = () => {
             onResetRoadmap={handleResetRoadmap}
             onLogout={handleLogout}
             mainTopics={mainTopics}
+            onLessonHydrated={handleLessonHydrated}
           />
         )
       )}

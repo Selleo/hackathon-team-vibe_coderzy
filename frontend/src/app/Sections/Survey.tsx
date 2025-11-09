@@ -32,6 +32,8 @@ const Survey: React.FC<SurveyProps> = ({ onComplete }) => {
   const handleSubmit = () => {
     if (profile.reason && profile.jobStatus && profile.codingExperience && profile.captivates && profile.learningGoal && profile.hobbies) {
       onComplete(profile as UserProfile);
+    } else {
+      alert("Please fill in all fields before finishing.");
     }
   };
 
@@ -107,7 +109,11 @@ const Survey: React.FC<SurveyProps> = ({ onComplete }) => {
               <button onClick={prevStep} className="px-6 py-2 text-white bg-gray-600 rounded-lg hover:bg-gray-500">
                 Back
               </button>
-              <button onClick={handleSubmit} className="px-6 py-2 text-white bg-cyan-600 rounded-lg hover:bg-cyan-500">
+              <button 
+                onClick={handleSubmit} 
+                disabled={!profile.learningGoal || profile.learningGoal.trim() === ""}
+                className="px-6 py-2 text-white bg-cyan-600 rounded-lg hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 Finish
               </button>
             </div>
