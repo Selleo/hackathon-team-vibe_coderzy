@@ -45,3 +45,6 @@ mentor_chats.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Environment files (production)
+.env.production
