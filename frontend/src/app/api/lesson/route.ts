@@ -45,103 +45,138 @@ export async function POST(req: Request) {
     let userPrompt = "";
 
     if (plan.lessonType === "text") {
-      systemPrompt = "You are an expert educator creating engaging lesson content. Generate well-structured text lessons in markdown format. Keep each block VERY SHORT and focused.";
-      userPrompt = `Create a complete text lesson about "${plan.topic}" for someone working on ${profile.learningGoal}.
+      systemPrompt = "You are an expert educator. Teach directly - don't tell them what they'll learn, just teach it. Be conversational and clear. Keep it VERY SHORT. Always include a quiz to verify understanding.";
+      userPrompt = `Teach about "${plan.topic}" for someone working on ${profile.learningGoal}.
 
 Context:
 - Job: ${profile.jobStatus}
 - Experience: ${profile.codingExperience}
-- Motivation: ${profile.captivates}
 - Goal: ${profile.learningGoal}
 
-Generate a lesson with 3 SEPARATE text blocks (the user will go through them one by one):
+Generate these blocks IN THIS EXACT ORDER:
 
-Block 1 - Introduction (VERY SHORT, 2-3 paragraphs MAXIMUM):
-- Brief introduction to the concept (1 paragraph)
-- Why it matters for their goal (1 paragraph)
+Block 1 - Text (VERY SHORT, 2-3 paragraphs):
+- Teach the concept directly with a practical example
+- Use simple, conversational language
 
-Block 2 - Deep Dive (VERY SHORT, 2-3 paragraphs MAXIMUM):
-- Main explanation with one simple example
-- How it applies to their specific goal
+Block 2 - Text (VERY SHORT, 2-3 paragraphs):
+- Continue with another key aspect and example
+- Keep it concrete and specific
 
-Block 3 - Key Takeaways (VERY SHORT, 2-3 paragraphs MAXIMUM):
-- Summary in simple terms
-- One concrete next step
+Block 3 - Quiz (MUST HAVE):
+- Create a practical quiz question about what was just taught
+- Scenario should relate to ${profile.learningGoal}
+- 4 options, only one correct
+- Short explanations (1-2 sentences each)
 
-IMPORTANT: Keep each block EXTREMELY SHORT and easy to read. No more than 3 paragraphs per block.
+IMPORTANT:
+- DON'T say "you will learn" - just TEACH directly
+- Be conversational and friendly
+- Keep text blocks EXTREMELY SHORT (2-3 paragraphs max)
+- Quiz is MANDATORY
+- Make the quiz question unique and interesting
 
 Format the response as JSON:
 {
   "blocks": [
     {
       "type": "text",
-      "title": "Introduction to ${plan.topic}",
-      "markdown": "## Introduction\\n\\nShort introduction content here...",
+      "title": "Learning ${plan.topic}",
+      "markdown": "## ${plan.topic}\\n\\nDirect teaching content...",
       "quickActions": ["Action 1", "Action 2"]
     },
     {
       "type": "text",
-      "title": "Understanding ${plan.topic}",
-      "markdown": "## Deep Dive\\n\\nMain explanation here...",
+      "title": "More About ${plan.topic}",
+      "markdown": "## Continued\\n\\nMore teaching content...",
       "quickActions": ["Action 1", "Action 2"]
     },
     {
-      "type": "text",
-      "title": "Key Takeaways",
-      "markdown": "## Summary\\n\\nKey points here...",
-      "quickActions": ["Action 1", "Action 2"]
+      "type": "quiz",
+      "title": "Check Your Understanding",
+      "recap": "Quick recap sentence",
+      "scenario": "Practical scenario for ${profile.learningGoal}",
+      "question": "The question",
+      "kind": "single",
+      "options": [
+        {"text": "Option 1", "isCorrect": true, "explanation": "Why correct"},
+        {"text": "Option 2", "isCorrect": false, "explanation": "Why wrong"},
+        {"text": "Option 3", "isCorrect": false, "explanation": "Why wrong"},
+        {"text": "Option 4", "isCorrect": false, "explanation": "Why wrong"}
+      ],
+      "penalty_hearts": 1
     }
   ]
 }`;
     } else if (plan.lessonType === "quiz") {
-      systemPrompt = "You are an expert educator creating quiz questions that test understanding in practical scenarios.";
-      userPrompt = `Create a complete quiz lesson about "${plan.topic}" for someone working on ${profile.learningGoal}.
+      systemPrompt = "You are an expert educator. Teach briefly then test with multiple quiz questions. Make each quiz unique and challenging.";
+      userPrompt = `Create a quiz-focused lesson about "${plan.topic}" for someone working on ${profile.learningGoal}.
 
 Context:
 - Job: ${profile.jobStatus}
 - Experience: ${profile.codingExperience}
 - Goal: ${profile.learningGoal}
 
-Generate a lesson with these blocks IN THIS ORDER:
+Generate these blocks IN THIS EXACT ORDER:
 
-Block 1 - Text recap (VERY SHORT):
-- Brief review in 1-2 paragraphs ONLY
-- Keep it concise and to the point
+Block 1 - Text (VERY SHORT, 1-2 paragraphs):
+- Quick teaching of the key concepts
+- Direct and conversational
 
-Block 2 - Quiz question:
-- Practical scenario related to their goal
-- Clear question with 3-4 options
-- Only one correct answer
-- Short explanations for each (1-2 sentences)
+Block 2 - Quiz #1:
+- First quiz question with practical scenario
+- 4 options, only one correct
+- Make it unique and interesting
+
+Block 3 - Quiz #2:
+- Second quiz question with DIFFERENT scenario
+- 4 options, only one correct
+- Test a different aspect of the topic
+- Make it challenging but fair
 
 Format as JSON:
 {
   "blocks": [
     {
       "type": "text",
-      "title": "Quick Review",
-      "markdown": "## Review: ${plan.topic}\\n\\nBrief recap here...",
-      "quickActions": ["Review action 1", "Review action 2"]
+      "title": "Quick Overview",
+      "markdown": "## ${plan.topic}\\n\\nBrief teaching...",
+      "quickActions": ["Action 1", "Action 2"]
     },
     {
       "type": "quiz",
-      "title": "Test Your Knowledge",
-      "recap": "Brief recap sentence",
-      "scenario": "Practical scenario related to ${profile.learningGoal}",
-      "question": "The question to answer",
+      "title": "Challenge #1",
+      "recap": "Brief recap",
+      "scenario": "First practical scenario for ${profile.learningGoal}",
+      "question": "First question",
       "kind": "single",
       "options": [
-        {"text": "Option 1", "isCorrect": true, "explanation": "Why this is correct"},
-        {"text": "Option 2", "isCorrect": false, "explanation": "Why this is wrong"},
-        {"text": "Option 3", "isCorrect": false, "explanation": "Why this is wrong"},
-        {"text": "Option 4", "isCorrect": false, "explanation": "Why this is wrong"}
+        {"text": "Option 1", "isCorrect": true, "explanation": "Why correct"},
+        {"text": "Option 2", "isCorrect": false, "explanation": "Why wrong"},
+        {"text": "Option 3", "isCorrect": false, "explanation": "Why wrong"},
+        {"text": "Option 4", "isCorrect": false, "explanation": "Why wrong"}
+      ],
+      "penalty_hearts": 1
+    },
+    {
+      "type": "quiz",
+      "title": "Challenge #2",
+      "recap": "Another aspect",
+      "scenario": "DIFFERENT scenario for ${profile.learningGoal}",
+      "question": "Second question",
+      "kind": "single",
+      "options": [
+        {"text": "Option 1", "isCorrect": true, "explanation": "Why correct"},
+        {"text": "Option 2", "isCorrect": false, "explanation": "Why wrong"},
+        {"text": "Option 3", "isCorrect": false, "explanation": "Why wrong"},
+        {"text": "Option 4", "isCorrect": false, "explanation": "Why wrong"}
       ],
       "penalty_hearts": 1
     }
   ]
 }`;
     } else if (plan.lessonType === "code") {
-      systemPrompt = `You are an expert ${language} developer creating simple, focused coding challenges.`;
+      systemPrompt = `You are an expert ${language} developer creating focused coding exercises. Be strict but fair in evaluation criteria.`;
       userPrompt = `Create a complete coding lesson about "${plan.topic}" in ${language} for someone working on ${profile.learningGoal}.
 
 Context:
@@ -150,44 +185,63 @@ Context:
 - Language: ${language}
 - Goal: ${profile.learningGoal}
 
-Generate a lesson with these blocks IN THIS ORDER:
+Generate these blocks IN THIS EXACT ORDER:
 
-Block 1 - Text instructions (VERY SHORT, 1-2 paragraphs ONLY):
-- Explain what simple function they will write (1 paragraph)
-- Why it's useful (1 paragraph)
+Block 1 - Text (VERY SHORT, 1-2 paragraphs):
+- Teach the concept briefly with a small example
+- Use conversational ${language} code snippets inline
 
-Block 2 - Code challenge:
-- ONE simple function to implement (keep it small and focused)
-- Clear, short instructions (3-4 sentences max)
-- Starter code in ${language} with function signature and TODO
-- A working solution (keep it simple, 5-15 lines of code)
-- 2-3 acceptance criteria (short and specific)
+Block 2 - Code Challenge:
+- ONE focused function to implement (5-15 lines)
+- Clear, specific instructions
+- Starter code in ${language} with function signature
+- Working solution that solves the problem
+- 3-4 SPECIFIC acceptance criteria (be clear about requirements)
 
-IMPORTANT for ${language} code:
-- Keep it SIMPLE - just ONE small function
-- Function should be 5-15 lines, not complex
-- Use proper ${language} syntax ONLY (don't mention other languages)
-- Realistic but simple example
-- Clear and focused task
+Block 3 - Quiz about the code:
+- Question about the concept or code approach
+- 4 options testing understanding
+- Related to what they just coded
+
+IMPORTANT for ${language}:
+- Use ONLY ${language} syntax (never mention other languages)
+- Keep function simple but meaningful
+- Acceptance criteria should be SPECIFIC and TESTABLE (e.g., "Returns correct result for empty input", "Handles edge case X")
+- Make quiz unique and related to the coding task
 
 Format as JSON:
 {
   "blocks": [
     {
       "type": "text",
-      "title": "Coding Challenge Setup",
-      "markdown": "## Build: ${plan.topic}\\n\\nWhat you'll create and why...",
-      "quickActions": ["Think about the inputs", "Consider edge cases"]
+      "title": "Learning ${plan.topic}",
+      "markdown": "## ${plan.topic}\\n\\nTeaching with ${language} examples...",
+      "quickActions": ["Action 1", "Action 2"]
     },
     {
       "type": "code",
-      "title": "Implement ${plan.topic}",
-      "instructions": "Clear step-by-step instructions in markdown",
+      "title": "Code: ${plan.topic}",
+      "instructions": "Clear, specific instructions for the function",
       "language": "${language.toLowerCase()}",
-      "starter": "// Proper ${language} starter code with structure",
-      "solution": "// Complete working solution in ${language}",
-      "acceptanceCriteria": ["Criterion 1", "Criterion 2", "Criterion 3", "Criterion 4"],
+      "starter": "// ${language} function signature with TODO",
+      "solution": "// Complete working ${language} solution",
+      "acceptanceCriteria": ["Specific criterion 1", "Specific criterion 2", "Specific criterion 3"],
       "penalty_hearts": 0
+    },
+    {
+      "type": "quiz",
+      "title": "Understanding the Code",
+      "recap": "About the code concept",
+      "scenario": "Scenario related to the coding task",
+      "question": "Question about approach or concept",
+      "kind": "single",
+      "options": [
+        {"text": "Option 1", "isCorrect": true, "explanation": "Why correct"},
+        {"text": "Option 2", "isCorrect": false, "explanation": "Why wrong"},
+        {"text": "Option 3", "isCorrect": false, "explanation": "Why wrong"},
+        {"text": "Option 4", "isCorrect": false, "explanation": "Why wrong"}
+      ],
+      "penalty_hearts": 1
     }
   ]
 }`;

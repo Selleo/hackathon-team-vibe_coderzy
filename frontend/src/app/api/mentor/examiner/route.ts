@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
   const payload = {
     model: "gpt-4o-mini",
-    temperature: 0.1,
+    temperature: 0.2,
     response_format: {
       type: "json_schema",
       json_schema: {
@@ -72,11 +72,11 @@ export async function POST(req: Request) {
       {
         role: "system",
         content:
-          'You are "Mentor" in Examiner mode. Evaluate the learner\'s code accurately and respond with JSON that matches the provided schema.',
+          'You are "Mentor" in Examiner mode. Evaluate code fairly and rigorously. Check if it meets the acceptance criteria and solves the problem correctly. Accept different valid approaches, but the code must actually work and meet the requirements. Reject code with logic errors, incorrect output, or missing key functionality. Be encouraging but honest in feedback.',
       },
       {
         role: "user",
-        content: `Proficiency: ${proficiency}\nLesson context: ${lessonContext}\n\nCode:\n${userCode}`,
+        content: `Proficiency: ${proficiency}\n\nLesson context and acceptance criteria:\n${lessonContext}\n\nUser's code:\n${userCode}\n\nEvaluate: Does it meet the acceptance criteria? Does it solve the problem? Is the logic correct? Be fair but rigorous - don't accept code that doesn't work or misses requirements.`,
       },
     ],
   };
