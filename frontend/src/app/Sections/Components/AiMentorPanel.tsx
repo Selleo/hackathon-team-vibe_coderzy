@@ -87,7 +87,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
     return messages
       .filter((msg) => !msg.isIntro)
       .map((msg) => ({
-        role: msg.sender,
+        role: msg.sender === "mentor" ? "assistant" : "user",
         content: msg.content,
       }));
   }, [messages]);
