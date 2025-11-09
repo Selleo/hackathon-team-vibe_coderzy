@@ -27,7 +27,7 @@ export default function ChatPage() {
   }, []);
 
   return (
-    <div className="p-6 bg-gray-900 min-h-screen">
+    <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 h-screen overflow-hidden">
       <ChatWithMentor userProfile={userProfile} />
     </div>
   );

@@ -95,17 +95,17 @@ const ChatWithMentor: React.FC<ChatWithMentorProps> = ({ userProfile }) => {
   };
 
   return (
-    <div className="container mx-auto max-w-5xl flex flex-col h-screen p-6 animate-fade-in">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white mb-1">
-          Mentor Chat
-        </h1>
-        <p className="text-sm text-gray-400">Ask questions and get personalized guidance</p>
-      </div>
+    <div className="h-full flex items-center justify-center p-6">
+      <div className="w-full max-w-5xl h-full flex flex-col animate-fade-in">
+        {/* Header */}
+        <div className="mb-4 pt-2">
+          <h1 className="text-3xl font-bold text-white mb-1">
+            Mentor Chat
+          </h1>
+        </div>
 
-      {/* Chat Messages Container */}
-      <div className="flex-1 bg-gradient-to-b from-gray-900/50 to-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 shadow-2xl overflow-hidden flex flex-col">
+        {/* Chat Messages Container */}
+        <div className="flex-1 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/60 shadow-2xl overflow-hidden flex flex-col">
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((message) => (
           <div
@@ -235,6 +235,7 @@ const ChatWithMentor: React.FC<ChatWithMentorProps> = ({ userProfile }) => {
         <p className="text-[10px] text-gray-500 mt-2 ml-1">
           Press <kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400 font-mono">Enter</kbd> to send · <kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400 font-mono">Shift+Enter</kbd> for new line
         </p>
+      </div>
       </div>
       </div>
     </div>
