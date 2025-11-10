@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { NextResponse } from "next/server";
+
 type ExplainRequest = {
   lessonContext?: string;
   proficiency?: string;
@@ -7,37 +9,16 @@ type ExplainRequest = {
   topic?: string;
   prompt?: string;
   learnerQuestion?: string;
-  history?: { role: "mentor" | "user"; content: string }[];
+  history?: { role: "model" | "user"; content: string }[];
 };
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-
-type ContentPart = { text?: string };
-
-const parseContent = (content: unknown): string => {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => {
-        if (typeof part === "string") return part;
-        if (part && typeof part === "object" && "text" in part) {
-          const candidate = part as ContentPart;
-          if (typeof candidate.text === "string") {
-            return candidate.text;
-          }
-        }
-        return "";
-      })
-      .join("");
-  }
-  return "";
-};
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 export async function POST(req: Request) {
-  if (!OPENAI_API_KEY) {
+  if (!GEMINI_API_KEY) {
     return NextResponse.json(
-      { error: "OPENAI_API_KEY is not configured on the server." },
+      { error: "GEMINI_API_KEY is not configured on the server." },
       { status: 500 },
     );
   }
@@ -52,35 +33,33 @@ export async function POST(req: Request) {
     );
   }
 
-  const historyMessages =
-    history?.map((message) => ({
-      role: message.role === "mentor" ? "assistant" : "user",
-      content: message.content,
-    })) ?? [];
+  const contents = (history ?? []).map((message) => ({
+    role: message.role,
+    parts: [{ text: message.content }],
+  }));
 
-  const payload = {
-    model: "gpt-4o-mini",
-    temperature: 0.4,
-    messages: [
+  contents.push({
+    role: "user",
+    parts: [
       {
-        role: "system",
-        content:
-          `You are an AI mentor in ${persona} mode. Explain topics clearly, encourage reflection, and keep responses under five sentences.`,
-      },
-      ...historyMessages,
-      {
-        role: "user",
-        content: `Lesson context: ${lessonContext}\nTopic: ${topic}\nPrompt: ${prompt}\nLearner question: ${learnerQuestion}\nProficiency: ${proficiency}`,
+        text: `You are an AI mentor in ${persona} mode. Explain topics clearly, encourage reflection, and keep responses under five sentences.
+Lesson context: ${lessonContext}\nTopic: ${topic}\nPrompt: ${prompt}\nLearner question: ${learnerQuestion}\nProficiency: ${proficiency}`,
       },
     ],
+  });
+
+  const payload = {
+    contents,
+    generationConfig: {
+      temperature: 0.4,
+    },
   };
 
   try {
-    const response = await fetch(OPENAI_URL, {
+    const response = await fetch(GEMINI_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify(payload),
     });
@@ -88,14 +67,14 @@ export async function POST(req: Request) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("OpenAI explain error", data);
-      return NextResponse.json({ error: "Failed to contact OpenAI." }, { status: 502 });
+      console.error("Gemini explain error", data);
+      return NextResponse.json({ error: "Failed to contact Gemini." }, { status: 502 });
     }
 
-    const feedback = parseContent(data.choices?.[0]?.message?.content).trim();
+    const feedback = data.candidates?.[0]?.content?.parts?.[0]?.text.trim() ?? "";
     return NextResponse.json({ feedback });
   } catch (error) {
     console.error("Explain route error", error);
-    return NextResponse.json({ error: "Unexpected error calling OpenAI." }, { status: 500 });
+    return NextResponse.json({ error: "Unexpected error calling Gemini." }, { status: 500 });
   }
 }

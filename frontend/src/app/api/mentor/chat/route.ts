@@ -2,11 +2,15 @@ import fs from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+import fs from "fs";
+import path from "path";
+import { NextResponse } from "next/server";
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 interface ChatHistoryItem {
-  role: "user" | "assistant";
+  role: "user" | "model";
   content: string;
 }
 
@@ -22,9 +26,9 @@ interface MentorChatEntry extends MentorChatPayload {
 }
 
 export async function POST(req: Request) {
-  if (!OPENAI_API_KEY) {
+  if (!GEMINI_API_KEY) {
     return NextResponse.json(
-      { error: "OPENAI_API_KEY is not configured on the server." },
+      { error: "GEMINI_API_KEY is not configured on the server." },
       { status: 500 },
     );
   }
@@ -32,47 +36,54 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as MentorChatPayload;
 
-    // Build messages for OpenAI with system prompt and conversation history
-    const messages = [
-      {
-        role: "system",
-        content: `You are a helpful programming mentor. Your role is to guide and support learners on their coding journey. 
-        
+    const systemPrompt = `You are a helpful programming mentor. Your role is to guide and support learners on their coding journey.
+
 User Profile:
 - Reason for learning: ${body.userProfile.reason || "Not specified"}
 - Job status: ${body.userProfile.jobStatus || "Not specified"}
-- Coding experience: ${body.userProfile.codingExperience || "beginner"}
+- Coding experience: ${body.userprofile.codingExperience || "beginner"}
 - What captivates them: ${body.userProfile.captivates || "Not specified"}
 - Learning goal: ${body.userProfile.learningGoal || "Not specified"}
 - Hobbies: ${Array.isArray(body.userProfile.hobbies) ? body.userProfile.hobbies.join(", ") : "Not specified"}
 
-Adapt your responses to their experience level and goals. Be encouraging, clear, and provide practical guidance.`,
-      },
-      ...(body.conversationHistory || []),
-    ];
+Adapt your responses to their experience level and goals. Be encouraging, clear, and provide practical guidance.`;
 
-    // Call OpenAI API
-    const response = await fetch(OPENAI_URL, {
+    const contents = (body.conversationHistory ?? []).map((item) => ({
+      role: item.role,
+      parts: [{ text: item.content }],
+    }));
+
+    // Add the new user message to the contents
+    contents.push({
+      role: "user",
+      parts: [{ text: body.message }],
+    });
+
+    // Call Gemini API
+    const response = await fetch(GEMINI_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages,
-        temperature: 0.7,
-        max_tokens: 150,
+        systemInstruction: {
+          parts: [{ text: systemPrompt }],
+        },
+        contents,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 150,
+        },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    const assistantReply = data.choices?.[0]?.message?.content || "I'm sorry, I couldn't generate a response.";
+    const assistantReply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
 
     // Save to mentor_chats.json for history tracking
     const dataDir = path.join(process.cwd(), "data");

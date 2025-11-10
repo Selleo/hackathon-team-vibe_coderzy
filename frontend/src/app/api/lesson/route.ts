@@ -6,8 +6,8 @@ interface LessonRequestBody {
   profile?: UserProfile;
 }
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 const deriveLanguageFromTopic = (topic: string): string => {
   const topicLower = topic.toLowerCase();
@@ -33,9 +33,9 @@ export async function POST(req: Request) {
   const { plan, profile } = body;
   const language = deriveLanguageFromTopic(plan.topic);
 
-  if (!OPENAI_API_KEY) {
+  if (!GEMINI_API_KEY) {
     return NextResponse.json(
-      { error: "OpenAI API key not configured." },
+      { error: "Gemini API key not configured." },
       { status: 500 },
     );
   }
@@ -304,20 +304,21 @@ Format as JSON:
     }
 
     const payload = {
-      model: "gpt-4o-mini",
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+      contents: [
+        {
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+        },
       ],
+      generationConfig: {
+        temperature: 0.7,
+        response_mime_type: "application/json",
+      },
     };
 
-    const response = await fetch(OPENAI_URL, {
+    const response = await fetch(GEMINI_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify(payload),
     });
@@ -325,14 +326,14 @@ Format as JSON:
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("OpenAI lesson error", data);
+      console.error("Gemini lesson error", data);
       return NextResponse.json(
         { error: "Failed to generate lesson content." },
         { status: 502 },
       );
     }
 
-    const content = data.choices?.[0]?.message?.content;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
     const parsed = JSON.parse(content);
     
     return NextResponse.json(parsed);
