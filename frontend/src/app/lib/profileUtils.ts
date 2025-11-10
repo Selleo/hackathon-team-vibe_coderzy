@@ -23,7 +23,7 @@ export const buildProfileHooks = (profile: UserProfile) => {
   const captivates = sanitize(profile.captivates) || "problem solving";
   const hobby = getPrimaryHobby(profile);
 
-  const projectLabel = hobby ? `${hobby} side project` : fallbackProject;
+  const projectLabel = hobby ? hobby : fallbackProject;
   const shortGoal = goal.length > 60 ? `${goal.slice(0, 57)}…` : goal;
 
   return {
