@@ -183,7 +183,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-xl  shadow-2xl pt-7 max-w-3xl p-8 relative  flex flex-col">
+      <div className="bg-gray-800 rounded-xl  shadow-2xl pt-7 max-w-3xl p-8 relative  flex flex-col max-h-[80vh]">
 
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">

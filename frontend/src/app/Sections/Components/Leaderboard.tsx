@@ -4,13 +4,13 @@ import React from "react";
 
 const Leaderboard: React.FC<{ currentUserXp: number }> = ({ currentUserXp }) => {
   const dummyData = [
-    { name: "Alex", xp: 1250 },
+    { name: "Alex", xp: 1750 },
     { name: "Maria", xp: 1100 },
     { name: "You", xp: currentUserXp },
     { name: "Kenji", xp: 850 },
-    { name: "Fatima", xp: 700 },
-    { name: "David", xp: 620 },
-    { name: "Sofia", xp: 550 },
+    { name: "Fatima", xp: 500 },
+    { name: "David", xp: 200 },
+    { name: "Sofia", xp: 100 },
   ].sort((a, b) => b.xp - a.xp);
 
   const getMedalEmoji = (index: number) => {
