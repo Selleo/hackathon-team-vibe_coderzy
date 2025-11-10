@@ -9,17 +9,6 @@ interface LessonRequestBody {
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-const deriveLanguageFromTopic = (topic: string): string => {
-  const topicLower = topic.toLowerCase();
-  if (/\bpython\b|django|flask|fastapi/.test(topicLower)) return "Python";
-  if (/\btypescript\b/.test(topicLower)) return "TypeScript";
-  if (/\bjava\b(?!script)|spring/.test(topicLower)) return "Java";
-  if (/\bc#\b|csharp|\.net/.test(topicLower)) return "C#";
-  if (/\bgo\b|golang/.test(topicLower)) return "Go";
-  if (/\brust\b/.test(topicLower)) return "Rust";
-  return "JavaScript";
-};
-
 export async function POST(req: Request) {
   const body = (await req.json()) as LessonRequestBody;
 
@@ -31,7 +20,6 @@ export async function POST(req: Request) {
   }
 
   const { plan, profile } = body;
-  const language = deriveLanguageFromTopic(plan.topic);
 
   if (!GEMINI_API_KEY) {
     return NextResponse.json(
@@ -176,25 +164,24 @@ Format as JSON:
   ]
 }`;
     } else if (plan.lessonType === "code") {
-      systemPrompt = `You are an expert ${language} developer creating focused coding exercises. Be strict but fair in evaluation criteria.`;
-      userPrompt = `Create a complete coding lesson about "${plan.topic}" in ${language} for someone working on ${profile.learningGoal}.
+      systemPrompt = `You are an expert developer creating focused coding exercises. Be strict but fair in evaluation criteria. A lesson can involve multiple languages if the topic requires it (e.g., HTML, CSS, and JavaScript for a web development topic).`;
+      userPrompt = `Create a complete coding lesson about "${plan.topic}" for someone working on ${profile.learningGoal}. The language(s) should be inferred from the topic.
 
 Context:
 - Job: ${profile.jobStatus}
 - Experience: ${profile.codingExperience}
-- Language: ${language}
 - Goal: ${profile.learningGoal}
 
 Generate these blocks IN THIS EXACT ORDER:
 
 Block 1 - Text (VERY SHORT, 1-2 paragraphs):
 - Teach the concept briefly with a small example
-- Use conversational ${language} code snippets inline
+- Use conversational code snippets inline in the inferred language(s)
 
 Block 2 - Code Challenge:
-- ONE focused function to implement (5-15 lines)
+- ONE focused function or a small set of related functions to implement (5-15 lines)
 - Clear, specific instructions
-- Starter code in ${language} with function signature
+- Starter code in the inferred language(s) with function signature(s)
 - Working solution that solves the problem
 - 3-4 SPECIFIC acceptance criteria (be clear about requirements)
 
@@ -203,9 +190,9 @@ Block 3 - Quiz about the code:
 - 4 options testing understanding
 - Related to what they just coded
 
-IMPORTANT for ${language}:
-- Use ONLY ${language} syntax (never mention other languages)
-- Keep function simple but meaningful
+IMPORTANT:
+- Use ONLY the syntax of the language(s) inferred from the topic (never mention other languages)
+- Keep function(s) simple but meaningful
 - Acceptance criteria should be SPECIFIC and TESTABLE (e.g., "Returns correct result for empty input", "Handles edge case X")
 - Make quiz unique and related to the coding task
 
@@ -215,16 +202,16 @@ Format as JSON:
     {
       "type": "text",
       "title": "Learning ${plan.topic}",
-      "markdown": "## ${plan.topic}\\n\\nTeaching with ${language} examples...",
+      "markdown": "## ${plan.topic}\\n\\nTeaching with examples in the inferred language(s)...",
       "quickActions": ["Action 1", "Action 2"]
     },
     {
       "type": "code",
       "title": "Code: ${plan.topic}",
-      "instructions": "Clear, specific instructions for the function",
-      "language": "${language.toLowerCase()}",
-      "starter": "// ${language} function signature with TODO",
-      "solution": "// Complete working ${language} solution",
+      "instructions": "Clear, specific instructions for the function(s)",
+      "language": "inferred language(s)",
+      "starter": "// function signature(s) with TODO in the inferred language(s)",
+      "solution": "// Complete working solution(s) in the inferred language(s)",
       "acceptanceCriteria": ["Specific criterion 1", "Specific criterion 2", "Specific criterion 3"],
       "penalty_hearts": 0
     },

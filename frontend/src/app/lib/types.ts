@@ -71,7 +71,7 @@ export interface CodeBlock extends BaseBlock {
   type: "code";
   title: string;
   instructions: string;
-  language?: "javascript" | "python" | "typescript" | "java" | "csharp" | "go" | "rust";
+  language: string;
   starter: string;
   solution: string;
   acceptanceCriteria: string[];
