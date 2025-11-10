@@ -223,6 +223,11 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
   const [answerStatus, setAnswerStatus] = useState<"correct" | "incorrect" | null>(null);
   const optionsLocked = answerStatus === "correct";
 
+  useEffect(() => {
+    setSelectedOption(null);
+    setAnswerStatus(null);
+  }, [block]);
+
   const handleQuizAnswer = (option: QuizOption) => {
     if (optionsLocked) return;
 

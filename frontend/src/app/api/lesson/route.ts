@@ -64,6 +64,8 @@ IMPORTANT:
 - Quiz is MANDATORY
 - Make the quiz question unique and interesting
 
+IMPORTANT: Ensure the output is a single valid JSON object, with no extra text or explanations before or after the JSON. All strings in the JSON must be properly escaped.
+
 Format the response as JSON:
 {
   "blocks": [
@@ -121,6 +123,8 @@ Block 3 - Quiz #2:
 - 4 options, only one correct
 - Test a different aspect of the topic
 - Make it challenging but fair
+
+IMPORTANT: Ensure the output is a single valid JSON object, with no extra text or explanations before or after the JSON. All strings in the JSON must be properly escaped.
 
 Format as JSON:
 {
@@ -196,6 +200,8 @@ IMPORTANT:
 - Acceptance criteria should be SPECIFIC and TESTABLE (e.g., "Returns correct result for empty input", "Handles edge case X")
 - Make quiz unique and related to the coding task
 
+IMPORTANT: Ensure the output is a single valid JSON object, with no extra text or explanations before or after the JSON. All strings in the JSON must be properly escaped.
+
 Format as JSON:
 {
   "blocks": [
@@ -256,6 +262,8 @@ Block 3 - AI Mentor Quiz:
 - Context for the AI to quiz them
 - Prompt for examiner mode
 - Goal of 2 correct answers
+
+IMPORTANT: Ensure the output is a single valid JSON object, with no extra text or explanations before or after the JSON. All strings in the JSON must be properly escaped.
 
 Format as JSON:
 {

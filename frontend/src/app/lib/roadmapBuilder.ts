@@ -60,7 +60,7 @@ const lessonTitle = (
     mentor: ["Mentor session", "Open question", "Reflection desk"],
   };
   const prefix = prefixMap[lessonType][index % prefixMap[lessonType].length];
-  return `${prefix}: ${topic} → ${hooks.projectLabel}`;
+  return `${prefix}: ${topic}`;
 };
 
 const templateIdForLesson = (
@@ -87,15 +87,12 @@ const createLessonPlan = (
   const title = lessonTitle(topic, hooks, lessonType, lessonIndex);
   const templateId = templateIdForLesson(lessonType, isIntroTopic, lessonIndex);
   const descriptionBase = `Tie ${topic} to ${hooks.goal} for someone who is ${hooks.reason.toLowerCase()}.`;
+  const hobbiesString = hooks.hobbies.join(', ');
 
-  if (lessonType === "text") {
-    return {
-      templateId,
-      lessonType,
-      topic,
-      title,
+  const lessonConfigs: Record<LessonPlan["lessonType"], Partial<LessonPlan>> = {
+    text: {
       description: descriptionBase,
-      focus: hooks.projectLabel,
+      focus: hobbiesString,
       quickActions: [
         `Relate the idea to your work as a ${hooks.jobStatus}`,
         `Note how it helps with ${hooks.shortGoal}`,
@@ -103,55 +100,44 @@ const createLessonPlan = (
       ],
       snippetTag: "<button class=\"focus-pill\">Reflect</button>",
       emphasis: hooks.captivates,
-    };
-  }
-
-  if (lessonType === "quiz") {
-    return {
-      templateId,
-      lessonType,
-      topic,
-      title,
+    },
+    quiz: {
       description: `${descriptionBase} Challenge their memory before building.`,
       focus: hooks.shortGoal,
-      scenario: `While crafting ${hooks.projectLabel}, a ${hooks.jobStatus.toLowerCase()} wants ${topic} to support ${hooks.reason.toLowerCase()}.`,
+      scenario: `While working on something related to ${hobbiesString}, a ${hooks.jobStatus.toLowerCase()} wants ${topic} to support ${hooks.reason.toLowerCase()}.`,
       quickActions: [
-        `Identify the best option for ${hooks.projectLabel}`,
+        `Identify the best option for their goal`,
         `Explain why another option slows the plan`,
       ],
-    };
-  }
-
-  if (lessonType === "code") {
-    return {
-      templateId,
-      lessonType,
-      topic,
-      title,
+    },
+    code: {
       description: `Help the learner sketch pseudocode for ${topic} without locking them to a language.`,
       focus: deriveDisciplineLabel(profile),
-      scenario: `Outline steps they can adapt for ${hooks.projectLabel}`,
+      scenario: `Outline steps they can adapt for a project related to ${hobbiesString}`,
       quickActions: [
         "Draft a three-step plan",
         "Mark where to personalize messaging",
       ],
       snippetTag: "<pseudo>plan()</pseudo>",
-    };
-  }
+    },
+    mentor: {
+      description: `${descriptionBase} Use a mentor persona that balances warmth and accountability.`,
+      focus: hooks.reason,
+      persona: hooks.experience.toLowerCase().includes("beginner")
+        ? "encouraging guide"
+        : "pragmatic coach",
+      prompt: `Explain ${topic} using examples from projects related to ${hobbiesString}. After that, switch into examiner mode and ask open questions until the learner gives confident answers that align with ${hooks.goal}. Reference their job status (${hooks.jobStatus}) and what captivates them (${hooks.captivates}).`,
+      emphasis: hooks.captivates,
+    },
+  };
 
   return {
     templateId,
     lessonType,
     topic,
     title,
-    description: `${descriptionBase} Use a mentor persona that balances warmth and accountability.`,
-    focus: hooks.reason,
-    persona: hooks.experience.toLowerCase().includes("beginner")
-      ? "encouraging guide"
-      : "pragmatic coach",
-    prompt: `Explain ${topic} using examples from ${hooks.projectLabel}. After that, switch into examiner mode and ask open questions until the learner gives confident answers that align with ${hooks.goal}. Reference their job status (${hooks.jobStatus}) and what captivates them (${hooks.captivates}).`,
-    emphasis: hooks.captivates,
-  };
+    ...lessonConfigs[lessonType],
+  } as LessonPlan;
 };
 
 export const generateRoadmapPlan = (

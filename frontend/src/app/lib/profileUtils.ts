@@ -9,21 +9,14 @@ const capitalizeWords = (value: string) =>
     .map((word) => word[0]?.toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
 
-const fallbackProject = "personal side project";
-
-export const getPrimaryHobby = (profile: UserProfile): string | null => {
-  return profile.hobbies?.find((hobby) => Boolean(sanitize(hobby))) ?? null;
-};
-
 export const buildProfileHooks = (profile: UserProfile) => {
   const goal = sanitize(profile.learningGoal) || "ship a small interactive project";
   const reason = sanitize(profile.reason) || "stay curious";
   const jobStatus = sanitize(profile.jobStatus) || "learner";
   const experience = sanitize(profile.codingExperience) || "beginner";
   const captivates = sanitize(profile.captivates) || "problem solving";
-  const hobby = getPrimaryHobby(profile);
+  const hobbies = profile.hobbies?.filter((hobby) => Boolean(sanitize(hobby))) ?? [];
 
-  const projectLabel = hobby ? hobby : fallbackProject;
   const shortGoal = goal.length > 60 ? `${goal.slice(0, 57)}…` : goal;
 
   return {
@@ -33,8 +26,7 @@ export const buildProfileHooks = (profile: UserProfile) => {
     jobStatus,
     experience,
     captivates,
-    hobby,
-    projectLabel,
+    hobbies,
   };
 };
 
@@ -64,12 +56,12 @@ export const deriveLanguageFromProfile = (profile: UserProfile): "javascript" | 
 
   // Check for explicit language mentions
   if (/\bpython\b/i.test(goal)) return "python";
-  if (/\btypescript\b|\\bts\b/i.test(goal)) return "typescript";
+  if (/\btypescript\b|\bts\b/i.test(goal)) return "typescript";
   if (/\bjavascript\b|\bjs\b|\breact\b|\bnode\b|\bvue\b|\bangular\b/i.test(goal)) return "javascript";
   
   // Check for framework/domain patterns
   if (/django|flask|fastapi|pandas|numpy|data\s+science|machine\s+learning/i.test(goal)) return "python";
-  if (/next\.?js|react|vue|angular|frontend|web\s+app/i.test(goal)) return "javascript";
+  if (/next\.js|react|vue|angular|frontend|web\s+app/i.test(goal)) return "javascript";
   
   // Default to JavaScript
   return "javascript";
@@ -81,7 +73,7 @@ export const introFriendlyTopic = (profile: UserProfile): string =>
 export const defaultTopicScaffolding = (profile: UserProfile): string[] => {
   const hooks = buildProfileHooks(profile);
   const discipline = deriveDisciplineLabel(profile);
-  const action = hooks.hobby ? `Projects Inspired by ${hooks.hobby}` : "Side Projects";
+  const action = hooks.hobbies.length > 0 ? `Projects Inspired by ${hooks.hobbies.join(', ')}` : "Side Projects";
 
   const baseTopics = [
     introFriendlyTopic(profile),
