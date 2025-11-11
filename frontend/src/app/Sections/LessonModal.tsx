@@ -89,7 +89,14 @@ const LessonModal: React.FC<LessonModalProps> = ({
       case "text":
         return <TextComponent block={block} onContinue={handleNextBlock} />;
       case "quiz":
-        return <QuizComponent key={block.id} block={block} loseLife={loseLife} onCorrect={handleNextBlock} />;
+        return (
+          <QuizComponent
+            key={`${stage.id}-quiz-${currentBlockIndex}`}
+            block={block}
+            loseLife={loseLife}
+            onCorrect={handleNextBlock}
+          />
+        );
       case "code":
         return (
           <CodeComponent
@@ -227,9 +234,6 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
   const [selectedOption, setSelectedOption] = useState<QuizOption | null>(null);
   const [answerStatus, setAnswerStatus] = useState<"correct" | "incorrect" | null>(null);
   const optionsLocked = answerStatus === "correct";
-
-
-
   const handleQuizAnswer = (option: QuizOption) => {
     if (optionsLocked) return;
 
