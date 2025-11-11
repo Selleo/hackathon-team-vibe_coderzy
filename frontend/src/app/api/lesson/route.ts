@@ -282,10 +282,10 @@ const normalizeBlocks = (
 
       return {
         type: "code",
-        title: ensureString(block.title, `Warsztat: ${plan.topic}`),
+        title: ensureString(block.title, `Workshop: ${plan.topic}`),
         instructions: ensureString(
           block.instructions,
-          `Mentor walks you through a mini build focused on ${plan.topic}.`,
+          `The mentor walks you through a mini build focused on ${plan.topic}.`,
         ),
         language: ensureString(block.language, profile.learningGoal || "javascript"),
         starter,

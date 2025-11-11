@@ -205,7 +205,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
     <>
       <div
         ref={chatScrollRef}
-        className="mb-4 max-h-72 overflow-y-auto space-y-3 border border-[#1A1A1A] bg-[#050505] p-4"
+        className="mb-4 max-h-72 overflow-y-auto space-y-4 rounded-2xl border border-gray-700/60 bg-gray-800/50 p-5 backdrop-blur"
       >
         {messages.map((message) => (
           <div
@@ -217,8 +217,10 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
                 {message.sender === "mentor" ? "mentor" : "you"}
               </p>
               <div
-                className={`rounded-lg px-3 py-2 leading-relaxed ${
-                  message.sender === "mentor" ? "bg-transparent text-gray-100" : "bg-[#1A1A1A]"
+                className={`rounded-2xl px-4 py-3 leading-relaxed shadow-lg ${
+                  message.sender === "mentor"
+                    ? "border border-gray-700/50 bg-gray-800/85 text-gray-100"
+                    : "bg-linear-to-br from-cyan-600 to-cyan-700 text-white"
                 }`}
               >
                 {message.content}
@@ -237,7 +239,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
               key={suggestion}
               type="button"
               onClick={() => setPromptInput(suggestion)}
-              className="rounded-full border border-[#2A2A2A] px-3 py-1 text-[11px] text-gray-400 hover:text-gray-100"
+              className="rounded-full border border-gray-700/60 bg-gray-900/60 px-3 py-1 text-[11px] text-gray-300 transition hover:border-cyan-500/60 hover:text-cyan-200"
             >
               {suggestion}
             </button>
@@ -250,18 +252,18 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
           void sendExplainMessage();
         }}
       >
-        <div className="flex items-center gap-3 rounded-lg border border-[#1A1A1A] bg-[#050505] px-3">
+  <div className="flex items-center gap-3 rounded-2xl border border-gray-700/60 bg-gray-900/60 px-4 py-2">
           <textarea
             value={promptInput}
             onChange={(event) => setPromptInput(event.target.value)}
             placeholder="Message mentor…"
             rows={1}
-            className="flex-1 resize-none bg-transparent py-3 text-gray-100 placeholder:text-gray-500 focus:outline-none"
+            className="flex-1 resize-none bg-transparent py-2 text-gray-100 placeholder:text-gray-500 focus:outline-none"
           />
           <button
             type="submit"
             disabled={isSendingExplain}
-            className="text-xs text-gray-300 transition hover:text-gray-100 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-600 to-cyan-700 px-4 py-2 text-[11px] font-semibold text-white transition hover:from-cyan-500 hover:to-cyan-600 disabled:opacity-40"
           >
             {isSendingExplain ? "…" : "Send"}
           </button>
@@ -271,7 +273,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
       {readyToContinue && (
         <button
           onClick={onContinue}
-          className="mt-6 w-full rounded-xl bg-white/5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+          className="mt-6 w-full rounded-xl bg-linear-to-r from-cyan-600 to-cyan-700 py-3 text-sm font-semibold text-white transition hover:from-cyan-500 hover:to-cyan-600"
         >
           Continue
         </button>
@@ -281,27 +283,27 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
 
   const quizSection = (
     <>
-      <p className="text-gray-300 mb-3">
+      <p className="mb-3 text-sm text-gray-300">
         {block.prompt} You need {quizGoal} correct answer{quizGoal === 1 ? "" : "s"} to continue.
       </p>
-      <div className="mb-4 h-1.5 w-full rounded-full bg-[#1E1E1E]">
+      <div className="mb-4 h-1.5 w-full rounded-full bg-gray-700/60">
         <div
-          className="h-full rounded-full bg-[#0FA47F] transition-all"
+          className="h-full rounded-full bg-linear-to-r from-cyan-500 to-cyan-400 transition-all"
           style={{ width: `${(correctCount / quizGoal) * 100}%` }}
         />
       </div>
-      {quizError && <p className="text-sm text-red-400 mb-3">{quizError}</p>}
-      {isFetchingQuestion && <p className="text-gray-400 mb-4">Fetching a new question…</p>}
+  {quizError && <p className="mb-3 text-sm text-red-400">{quizError}</p>}
+      {isFetchingQuestion && <p className="mb-4 text-sm text-gray-300">Fetching a new question…</p>}
       {currentQuestion && (
-        <div className="mb-4 rounded-xl border border-[#1F1F1F] bg-[#0F0F0F] p-4">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-gray-500 mb-2">Question</p>
-          <p className="text-base font-medium text-white whitespace-pre-wrap">{currentQuestion}</p>
+        <div className="mb-4 rounded-2xl border border-gray-700/60 bg-gray-900/55 p-5 shadow-lg">
+          <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-gray-500">Question</p>
+          <p className="whitespace-pre-wrap text-base font-medium text-white">{currentQuestion}</p>
         </div>
       )}
       <textarea
         value={quizAnswer}
         onChange={(event) => setQuizAnswer(event.target.value)}
-        className="w-full min-h-24 rounded-xl border border-[#2A2A2A] bg-[#0D0D0D] p-3 text-gray-100 placeholder:text-gray-500 focus:border-[#4E4E4E] focus:outline-none"
+        className="w-full min-h-24 rounded-2xl border border-gray-700/60 bg-gray-900/45 p-4 text-gray-100 placeholder:text-gray-500 focus:border-cyan-500 focus:outline-none"
         placeholder="Type your answer..."
         disabled={isFetchingQuestion || correctCount >= quizGoal}
       />
@@ -309,7 +311,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
         <button
           onClick={submitQuizResponse}
           disabled={isFetchingQuestion || correctCount >= quizGoal || isCheckingAnswer}
-          className="flex-1 rounded-xl bg-[#0FA47F] py-3 px-4 text-white font-semibold transition hover:brightness-110 disabled:opacity-60"
+          className="flex-1 rounded-xl bg-linear-to-r from-cyan-600 to-cyan-700 py-3 px-4 text-white font-semibold transition hover:from-cyan-500 hover:to-cyan-600 disabled:opacity-60"
         >
           {isCheckingAnswer ? "Checking…" : "Submit answer"}
         </button>
@@ -317,13 +319,13 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
           type="button"
           onClick={requestNewQuestion}
           disabled={isFetchingQuestion || isCheckingAnswer || lockNextQuestion}
-          className="flex-1 rounded-xl border border-[#2A2A2A] py-3 px-4 text-gray-300 transition hover:bg-[#1A1A1A] disabled:opacity-60"
+          className="flex-1 rounded-xl border border-gray-600/70 py-3 px-4 text-gray-200 transition hover:bg-gray-800 disabled:opacity-60"
         >
           New question
         </button>
       </div>
       {quizFeedback && (
-        <p className="mt-4 text-white bg-gray-800 rounded-lg p-4 whitespace-pre-wrap">
+        <p className="mt-4 whitespace-pre-wrap rounded-2xl border border-gray-700/60 bg-gray-900/55 p-5 text-gray-100 shadow-lg">
           {quizFeedback}
         </p>
       )}
@@ -335,7 +337,7 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
       {readyToContinue && (
         <button
           onClick={onContinue}
-          className="mt-6 w-full rounded-xl bg-white/5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+          className="mt-6 w-full rounded-xl bg-linear-to-r from-cyan-600 to-cyan-700 py-3 text-sm font-semibold text-white transition hover:from-cyan-500 hover:to-cyan-600"
         >
           Continue
         </button>
@@ -344,11 +346,11 @@ const AiMentorPanel: React.FC<AiMentorPanelProps> = ({ block, userProfile, onCon
   );
 
   return (
-    <div className="rounded-xl border border-[#2A2A2A] bg-[#0c0c0c] p-4 text-[13px] text-gray-100">
-      <header className="mb-4 space-y-1">
-        <p className="text-[10px] tracking-[0.35em] text-gray-500 uppercase">{block.persona} mentor</p>
-        <h3 className="text-base font-medium text-gray-100">{block.title}</h3>
-        <p className="text-[11px] text-gray-500 capitalize">Mode: {block.mode}</p>
+    <div className="rounded-2xl border border-gray-700/60 bg-gray-900/50 p-6 text-[13px] text-gray-100 shadow-2xl backdrop-blur">
+      <header className="mb-6 space-y-1">
+        <p className="text-[10px] uppercase tracking-[0.35em] text-cyan-300/70">{block.persona} mentor</p>
+        <h3 className="text-lg font-semibold text-white">{block.title}</h3>
+        <p className="text-[11px] text-gray-300 capitalize">Mode: {block.mode}</p>
       </header>
       <div>{block.mode === "quiz" ? quizSection : chatSection}</div>
     </div>

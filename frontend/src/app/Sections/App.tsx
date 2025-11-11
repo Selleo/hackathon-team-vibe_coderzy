@@ -7,6 +7,46 @@ import MainTopics from "./MainTopics";
 import Login from "./Login";
 import { LessonBlock, LessonSummary, StageStatus, UserProfile, TopicBlueprint, RoadmapTopic } from "../lib/types";
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const startOfDay = (date: Date) => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+const calculateDayGap = (currentDate: Date, previousDate: Date) => {
+  return Math.floor((startOfDay(currentDate).getTime() - startOfDay(previousDate).getTime()) / MS_PER_DAY);
+};
+
+const formatDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateKey = (value: string) => {
+  const sanitized = value.slice(0, 10);
+  const parts = sanitized.split("-");
+  if (parts.length !== 3) {
+    return null;
+  }
+  const [yearStr, monthStr, dayStr] = parts;
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
+    return null;
+  }
+  const parsed = new Date(year, month - 1, day);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+};
+
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [surveyCompleted, setSurveyCompleted] = useState(false);
@@ -19,6 +59,7 @@ const App = () => {
 
   const [lives, setLives] = useState(3);
   const [streak, setStreak] = useState(0);
+  const [lastStreakDate, setLastStreakDate] = useState<string | null>(null);
   const [xp, setXp] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -42,6 +83,33 @@ const App = () => {
       if (storedTopicsCompleted === "true") {
         setTopicsCompleted(true);
       }
+
+      const storedStreak = localStorage.getItem("userStreak");
+      const storedStreakDate = localStorage.getItem("userStreakDate");
+
+      let hydratedStreak = storedStreak ? Number.parseInt(storedStreak, 10) : 0;
+      if (Number.isNaN(hydratedStreak) || hydratedStreak < 0) {
+        hydratedStreak = 0;
+      }
+
+      let normalizedLastStreakDate: Date | null = null;
+      if (storedStreakDate) {
+        normalizedLastStreakDate = parseDateKey(storedStreakDate);
+        if (normalizedLastStreakDate) {
+          const gap = calculateDayGap(new Date(), normalizedLastStreakDate);
+          if (gap > 1) {
+            hydratedStreak = 0;
+            normalizedLastStreakDate = null;
+          }
+        }
+      }
+
+      if (!normalizedLastStreakDate && hydratedStreak > 0) {
+        hydratedStreak = 0;
+      }
+
+      setStreak(hydratedStreak);
+      setLastStreakDate(normalizedLastStreakDate ? formatDateKey(normalizedLastStreakDate) : null);
 
       const storedUserProfile = localStorage.getItem("userProfile");
       if (storedUserProfile) {
@@ -117,6 +185,23 @@ const App = () => {
     }
   }, [roadmap, isHydrated]);
 
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") {
+      return;
+    }
+    if (streak <= 0 && !lastStreakDate) {
+      localStorage.removeItem("userStreak");
+      localStorage.removeItem("userStreakDate");
+      return;
+    }
+    localStorage.setItem("userStreak", String(streak));
+    if (lastStreakDate) {
+      localStorage.setItem("userStreakDate", lastStreakDate);
+    } else {
+      localStorage.removeItem("userStreakDate");
+    }
+  }, [streak, lastStreakDate, isHydrated]);
+
   const handleSurveyComplete = useCallback(async (profile: UserProfile) => {
     setUserProfile(profile);
     setSurveyCompleted(true);
@@ -176,8 +261,25 @@ const App = () => {
       }
 
       if (originalLesson?.status !== StageStatus.Completed) {
+        const today = new Date();
+        const todayKey = formatDateKey(today);
         setXp((prev) => prev + xpReward);
-        setStreak((prev) => (prev === 0 ? 1 : prev));
+        setStreak((prev) => {
+          const lastDate = lastStreakDate ? parseDateKey(lastStreakDate) : null;
+          if (!lastDate) {
+            return 1;
+          }
+          const gap = calculateDayGap(today, lastDate);
+          if (gap <= 0) {
+            return prev > 0 ? prev : 1;
+          }
+          if (gap === 1) {
+            const base = prev > 0 ? prev : 0;
+            return base + 1;
+          }
+          return 1;
+        });
+        setLastStreakDate(todayKey);
       }
 
       const newRoadmap = prevRoadmap.map(topic => {
@@ -232,6 +334,7 @@ const App = () => {
     setRoadmap([]);
     setLives(3);
     setStreak(0);
+    setLastStreakDate(null);
     setXp(0);
     setLoadingTopics(false);
     setLoadingRoadmap(false);
@@ -244,15 +347,21 @@ const App = () => {
         "roadmap",
         "lastProfileSync",
         "roadmapUpdatedAt",
+        "userStreak",
+        "userStreakDate",
       ].forEach((key) => localStorage.removeItem(key));
     }
   }, []);
 
   const handleLogout = useCallback(() => {
     setIsLoggedIn(false);
+    setStreak(0);
+    setLastStreakDate(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem("userIsLoggedIn");
       localStorage.removeItem("userEmail");
+      localStorage.removeItem("userStreak");
+      localStorage.removeItem("userStreakDate");
     }
   }, []);
 
