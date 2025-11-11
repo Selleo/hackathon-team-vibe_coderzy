@@ -37,7 +37,8 @@ interface RoadmapProps {
   onStageSelect: (stage: LessonSummary, topicBlueprint: TopicBlueprint) => void;
 }
 
-const Roadmap: React.FC<RoadmapProps> = ({ roadmap, userProfile, onStageSelect }) => {
+const Roadmap: React.FC<RoadmapProps> = (props) => {
+  const { roadmap, userProfile, onStageSelect } = props;
   const [selectedTopic, setSelectedTopic] = useState<RoadmapTopic | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 

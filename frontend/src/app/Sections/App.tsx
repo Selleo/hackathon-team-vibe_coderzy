@@ -188,7 +188,7 @@ const App = () => {
           return lesson;
         });
 
-        let lessonIndex = newLessons.findIndex(l => l.id === lessonId);
+        const lessonIndex = newLessons.findIndex(l => l.id === lessonId);
         if (lessonIndex !== -1 && lessonIndex + 1 < newLessons.length) {
           if (newLessons[lessonIndex + 1].status === StageStatus.Locked) {
             newLessons[lessonIndex + 1].status = StageStatus.Unlocked;
@@ -198,7 +198,7 @@ const App = () => {
       });
 
       // Unlock first lesson of next topic
-      let topicIndex = newRoadmap.findIndex(t => t.lessons.some(l => l.id === lessonId));
+      const topicIndex = newRoadmap.findIndex(t => t.lessons.some(l => l.id === lessonId));
       if (topicIndex !== -1 && topicIndex + 1 < newRoadmap.length) {
         const currentTopic = newRoadmap[topicIndex];
         const allLessonsCompleted = currentTopic.lessons.every(l => l.status === StageStatus.Completed);

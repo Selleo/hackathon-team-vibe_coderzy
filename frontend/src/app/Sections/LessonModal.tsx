@@ -89,7 +89,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
       case "text":
         return <TextComponent block={block} onContinue={handleNextBlock} />;
       case "quiz":
-        return <QuizComponent block={block} loseLife={loseLife} onCorrect={handleNextBlock} />;
+        return <QuizComponent key={block.id} block={block} loseLife={loseLife} onCorrect={handleNextBlock} />;
       case "code":
         return (
           <CodeComponent
@@ -181,17 +181,16 @@ const TextComponent: React.FC<{ block: TextBlock; onContinue: () => void }> = ({
       <div className="prose prose-invert prose-cyan max-w-none">
         <ReactMarkdown
           components={{
-            h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
-            h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3 mt-6" {...props} />,
-            h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2 mt-4" {...props} />,
-            p: ({ node, ...props }) => <p className="text-gray-300 leading-relaxed mb-4" {...props} />,
-            ul: ({ node, ...props }) => <ul className="list-disc list-inside text-gray-300 mb-4 space-y-1" {...props} />,
-            ol: ({ node, ...props }) => <ol className="list-decimal list-inside text-gray-300 mb-4 space-y-1" {...props} />,
-            li: ({ node, ...props }) => <li className="text-gray-300" {...props} />,
-            strong: ({ node, ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
-            em: ({ node, ...props }) => <em className="italic text-cyan-200" {...props} />,
-            code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
-            pre: ({ node, ...props }) => <pre className="bg-gray-800 border border-gray-700 rounded-lg p-4 overflow-x-auto mb-4" {...props} />,
+            h1: ({ ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
+            h2: ({ ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3 mt-6" {...props} />,
+            h3: ({ ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2 mt-4" {...props} />,
+            p: ({ ...props }) => <p className="text-gray-300 leading-relaxed mb-4" {...props} />,
+            ul: ({ ...props }) => <ul className="list-disc list-inside text-gray-300 mb-4 space-y-1" {...props} />,
+            li: ({ ...props }) => <li className="text-gray-300" {...props} />,
+            strong: ({ ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
+            em: ({ ...props }) => <em className="italic text-cyan-200" {...props} />,
+            code: ({ ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
+            pre: ({ ...props }) => <pre className="bg-gray-800 border border-gray-700 rounded-lg p-4 overflow-x-auto mb-4" {...props} />,
           }}
         >
           {block.markdown}
@@ -229,10 +228,7 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
   const [answerStatus, setAnswerStatus] = useState<"correct" | "incorrect" | null>(null);
   const optionsLocked = answerStatus === "correct";
 
-  useEffect(() => {
-    setSelectedOption(null);
-    setAnswerStatus(null);
-  }, [block]);
+
 
   const handleQuizAnswer = (option: QuizOption) => {
     if (optionsLocked) return;
@@ -251,12 +247,12 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
       <div className="prose prose-invert prose-cyan max-w-none mb-6">
         <ReactMarkdown
           components={{
-            h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
-            h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3" {...props} />,
-            h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2" {...props} />,
-            p: ({ node, ...props }) => <p className="text-gray-300 mb-3" {...props} />,
-            strong: ({ node, ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
-            code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
+            h1: ({ ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
+            h2: ({ ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3" {...props} />,
+            h3: ({ ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2" {...props} />,
+            p: ({ ...props }) => <p className="text-gray-300 mb-3" {...props} />,
+            strong: ({ ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
+            code: ({ ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
           }}
         >
           {`### ${block.title}\n\n${block.recap}\n\n${block.scenario}\n\n**${block.question}**`}
@@ -357,14 +353,14 @@ const CodeComponent: React.FC<{
       <div className="prose prose-invert prose-cyan max-w-none mb-4">
         <ReactMarkdown
           components={{
-            h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
-            h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3" {...props} />,
-            h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2" {...props} />,
-            p: ({ node, ...props }) => <p className="text-gray-300 mb-3" {...props} />,
-            strong: ({ node, ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
-            ul: ({ node, ...props }) => <ul className="list-disc list-inside text-gray-300 mb-3 space-y-1" {...props} />,
-            li: ({ node, ...props }) => <li className="text-gray-300" {...props} />,
-            code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
+            h1: ({ ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
+            h2: ({ ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3" {...props} />,
+            h3: ({ ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2" {...props} />,
+            p: ({ ...props }) => <p className="text-gray-300 mb-3" {...props} />,
+            strong: ({ ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
+            ul: ({ ...props }) => <ul className="list-disc list-inside text-gray-300 mb-3 space-y-1" {...props} />,
+            li: ({ ...props }) => <li className="text-gray-300" {...props} />,
+            code: ({ ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
           }}
         >
           {`### ${block.title}\n\n${block.instructions}\n\n**Acceptance Criteria:**\n\n${block.acceptanceCriteria.map(c => `- ${c}`).join('\n')}`}
@@ -420,11 +416,11 @@ const CodeComponent: React.FC<{
           <div className="prose prose-invert prose-sm max-w-none">
             <ReactMarkdown
               components={{
-                p: ({ node, ...props }) => <p className="text-gray-300 mb-2" {...props} />,
-                ul: ({ node, ...props }) => <ul className="list-disc list-inside text-gray-300 mb-2" {...props} />,
-                li: ({ node, ...props }) => <li className="text-gray-300" {...props} />,
-                strong: ({ node, ...props }) => <strong className="font-bold text-gray-100" {...props} />,
-                code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1 py-0.5 rounded text-xs font-mono" {...props} />,
+                p: ({ ...props }) => <p className="text-gray-300 mb-2" {...props} />,
+                ul: ({ ...props }) => <ul className="list-disc list-inside text-gray-300 mb-2" {...props} />,
+                li: ({ ...props }) => <li className="text-gray-300" {...props} />,
+                strong: ({ ...props }) => <strong className="font-bold text-gray-100" {...props} />,
+                code: ({ ...props }) => <code className="bg-gray-800 text-cyan-300 px-1 py-0.5 rounded text-xs font-mono" {...props} />,
               }}
             >
               {feedback.feedback}

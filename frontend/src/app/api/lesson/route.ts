@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { LessonPlan, UserProfile, TopicBlueprint, LessonBlock } from "../../lib/types";
+import { LessonPlan, UserProfile } from "../../lib/types";
 
 interface LessonRequestBody {
   plan: LessonPlan;

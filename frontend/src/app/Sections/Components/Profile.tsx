@@ -1,6 +1,6 @@
 "use client";
 
-import { LessonSummary, StageStatus, UserProfile, RoadmapTopic, TopicBlueprint } from "../../lib/types";
+import { StageStatus, UserProfile, RoadmapTopic, TopicBlueprint } from "../../lib/types";
 import React, { useMemo } from "react";
 
 interface ProfileProps {
