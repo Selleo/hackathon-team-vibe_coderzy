@@ -76,7 +76,7 @@ const ChatWithMentor: React.FC<ChatWithMentorProps> = ({ userProfile }) => {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: assistantReply || "Przykładowa odpowiedź mentora.",
+        content: assistantReply || "Sample mentor response placeholder.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
