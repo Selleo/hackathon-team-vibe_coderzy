@@ -1,25 +1,164 @@
 import { NextResponse } from "next/server";
-import { LessonPlan, LessonBlock, UserProfile } from "../../lib/types";
+import { LessonPlan, UserProfile, TopicBlueprint, LessonBlock } from "../../lib/types";
 
 interface LessonRequestBody {
-  plan?: LessonPlan;
-  profile?: UserProfile;
+  plan: LessonPlan;
+  profile: UserProfile;
+  topicBlueprint: TopicBlueprint;
 }
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
+const generateUserPrompt = (plan: LessonPlan, profile: UserProfile, topicBlueprint: TopicBlueprint): string => {
+  const hobbies = profile.hobbies.join(', ') || 'their interests';
+  const baseContext = `
+This learner is a ${profile.jobStatus} with ${profile.codingExperience} experience.
+Their reason for learning is: "${profile.reason}".
+Their learning goal is: "${profile.learningGoal}".
+They are captivated by: "${profile.captivates}".
+Their hobbies include: ${hobbies}.
+
+The current topic is "${plan.topic}", which is part of their goal to ${plan.lessonGoal}.
+This lesson should be infused with their interest in ${plan.hobbyInfusion}.
+The reason hook for this lesson is: "${plan.reasonHook}".
+The assessment focus is: "${plan.assessmentFocus}".
+
+IMPORTANT:
+- Every generated string (titles, descriptions, micro-steps, quiz rationales) must explicitly reference the user's survey answers.
+- Do NOT use placeholders. All content must be fully personalized.
+- Teach directly. Do not say "you will learn".
+- Ensure the output is a single valid JSON object, with no extra text or explanations. All strings must be properly escaped.
+`;
+
+  switch (plan.lessonType) {
+    case "text":
+      return `
+${baseContext}
+Create a text-based lesson with 2-3 blocks.
+Each text block must include a "microSteps" array with 2-3 concrete actions the learner can take, related to their profile.
+For example: "Sketch a UI idea for a project inspired by your hobby of ${plan.hobbyInfusion}".
+
+Format the response as JSON:
+{
+  "blocks": [
+    {
+      "type": "text",
+      "title": "Personalized Title for Text Block 1",
+      "markdown": "Personalized markdown content for block 1, referencing user's goal and hobbies.",
+      "microSteps": ["Personalized micro-step 1", "Personalized micro-step 2"]
+    },
+    {
+      "type": "text",
+      "title": "Personalized Title for Text Block 2",
+      "markdown": "More personalized content, connecting to '${profile.reason}'.",
+      "microSteps": ["Another personalized micro-step related to ${plan.hobbyInfusion}", "Actionable step for a ${profile.jobStatus}"]
+    }
+  ]
+}
+`;
+    case "quiz":
+      return `
+${baseContext}
+Create a quiz-based lesson with 1 text block and 2 quiz blocks.
+Each quiz block must include a "reflectionPrompt" asking the learner to connect their answer to their goal or hobby.
+
+Format the response as JSON:
+{
+  "blocks": [
+    {
+      "type": "text",
+      "title": "Quiz Prep: ${plan.topic}",
+      "markdown": "A brief, personalized introduction to the quiz topic, tying into ${profile.learningGoal}."
+    },
+    {
+      "type": "quiz",
+      "title": "Challenge 1: ${plan.topic}",
+      "recap": "A recap related to the user's experience level.",
+      "scenario": "A scenario inspired by ${plan.hobbyInfusion}.",
+      "question": "A challenging question about the topic.",
+      "kind": "single",
+      "options": [
+        {"text": "Option 1", "isCorrect": true, "explanation": "Personalized explanation for why this is correct for a ${profile.jobStatus}."}, 
+        {"text": "Option 2", "isCorrect": false, "explanation": "Personalized explanation for why this is incorrect."} 
+      ],
+      "penalty_hearts": 1,
+      "reflectionPrompt": "How does this concept apply to your goal of ${profile.learningGoal}?"
+    },
+    {
+      "type": "quiz",
+      "title": "Challenge 2: Deeper Dive",
+      "recap": "Another recap.",
+      "scenario": "A different scenario, this time related to ${profile.captivates}.",
+      "question": "Another question.",
+      "kind": "single",
+      "options": [
+        {"text": "Option 1", "isCorrect": true, "explanation": "Correct explanation."}, 
+        {"text": "Option 2", "isCorrect": false, "explanation": "Incorrect explanation."}
+      ],
+      "penalty_hearts": 1,
+      "reflectionPrompt": "Think about how you could use this in a project about ${plan.hobbyInfusion}."
+    }
+  ]
+}
+`;
+    case "code":
+      return `
+${baseContext}
+Create a code-based lesson with 1 text block, 1 code block, and 1 quiz block.
+The code block must have a "reflectionPrompt".
+
+Format the response as JSON:
+{
+  "blocks": [
+    {
+      "type": "text",
+      "title": "Code Prep: ${plan.topic}",
+      "markdown": "A brief, personalized introduction to the coding challenge, mentioning ${profile.reason}."
+    },
+    {
+      "type": "code",
+      "title": "Code Challenge: ${plan.topic}",
+      "instructions": "Personalized instructions for the coding challenge.",
+      "language": "javascript",
+      "starter": "function yourChallenge() {\n  // Your code here\n}",
+      "solution": "function yourChallenge() {\n  return 'solution';\n}",
+      "acceptanceCriteria": ["Criteria 1 related to ${profile.learningGoal}", "Criteria 2"],
+      "penalty_hearts": 0,
+      "reflectionPrompt": "How would you adapt this code for a project about ${plan.hobbyInfusion}?"
+    },
+    {
+      "type": "quiz",
+      "title": "Code Understanding",
+      "recap": "A recap of the code challenge.",
+      "scenario": "A scenario related to the code challenge.",
+      "question": "A question about the code.",
+      "kind": "single",
+      "options": [
+        {"text": "Option 1", "isCorrect": true, "explanation": "Correct explanation."}, 
+        {"text": "Option 2", "isCorrect": false, "explanation": "Incorrect explanation."}
+      ],
+      "penalty_hearts": 1
+    }
+  ]
+}
+`;
+    default:
+      return "Generate a default lesson.";
+  }
+};
+
 export async function POST(req: Request) {
   const body = (await req.json()) as LessonRequestBody;
 
-  if (!body?.plan || !body?.profile) {
+  if (!body?.plan || !body?.profile || !body?.topicBlueprint) {
     return NextResponse.json(
-      { error: "Lesson plan and user profile are required." },
+      { error: "Lesson plan, user profile, and topic blueprint are required." },
       { status: 400 },
     );
   }
 
-  const { plan, profile } = body;
+  const { plan, profile, topicBlueprint } = body;
 
   if (!GEMINI_API_KEY) {
     return NextResponse.json(
@@ -29,279 +168,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    let systemPrompt = "";
-    let userPrompt = "";
-
-    if (plan.lessonType === "text") {
-      systemPrompt = "You are an expert educator. Teach directly - don't tell them what they'll learn, just teach it. Be conversational and clear. Keep it VERY SHORT. Always include a quiz to verify understanding.";
-      userPrompt = `Teach about "${plan.topic}" for someone working on ${profile.learningGoal}.
-
-Context:
-- Job: ${profile.jobStatus}
-- Experience: ${profile.codingExperience}
-- Goal: ${profile.learningGoal}
-
-Generate these blocks IN THIS EXACT ORDER:
-
-Block 1 - Text (VERY SHORT, 2-3 paragraphs):
-- Teach the concept directly with a practical example
-- Use simple, conversational language
-
-Block 2 - Text (VERY SHORT, 2-3 paragraphs):
-- Continue with another key aspect and example
-- Keep it concrete and specific
-
-Block 3 - Quiz (MUST HAVE):
-- Create a practical quiz question about what was just taught
-- Scenario should relate to ${profile.learningGoal}
-- 4 options, only one correct
-- Short explanations (1-2 sentences each)
-
-IMPORTANT:
-- DON'T say "you will learn" - just TEACH directly
-- Be conversational and friendly
-- Keep text blocks EXTREMELY SHORT (2-3 paragraphs max)
-- Quiz is MANDATORY
-- Make the quiz question unique and interesting
-
-IMPORTANT: Ensure the output is a single valid JSON object, with no extra text or explanations before or after the JSON. All strings in the JSON must be properly escaped.
-
-Format the response as JSON:
-{
-  "blocks": [
-    {
-      "type": "text",
-      "title": "Learning ${plan.topic}",
-      "markdown": "## ${plan.topic}\\n\\nDirect teaching content...",
-      "quickActions": ["Action 1", "Action 2"]
-    },
-    {
-      "type": "text",
-      "title": "More About ${plan.topic}",
-      "markdown": "## Continued\\n\\nMore teaching content...",
-      "quickActions": ["Action 1", "Action 2"]
-    },
-    {
-      "type": "quiz",
-      "title": "Check Your Understanding",
-      "recap": "Quick recap sentence",
-      "scenario": "Practical scenario for ${profile.learningGoal}",
-      "question": "The question",
-      "kind": "single",
-      "options": [
-        {"text": "Option 1", "isCorrect": true, "explanation": "Why correct"},
-        {"text": "Option 2", "isCorrect": false, "explanation": "Why wrong"},
-        {"text": "Option 3", "isCorrect": false, "explanation": "Why wrong"},
-        {"text": "Option 4", "isCorrect": false, "explanation": "Why wrong"}
-      ],
-      "penalty_hearts": 1
-    }
-  ]
-}`;
-    } else if (plan.lessonType === "quiz") {
-      systemPrompt = "You are an expert educator. Teach briefly then test with multiple quiz questions. Make each quiz unique and challenging.";
-      userPrompt = `Create a quiz-focused lesson about "${plan.topic}" for someone working on ${profile.learningGoal}.
-
-Context:
-- Job: ${profile.jobStatus}
-- Experience: ${profile.codingExperience}
-- Goal: ${profile.learningGoal}
-
-Generate these blocks IN THIS EXACT ORDER:
-
-Block 1 - Text (VERY SHORT, 1-2 paragraphs):
-- Quick teaching of the key concepts
-- Direct and conversational
-
-Block 2 - Quiz #1:
-- First quiz question with practical scenario
-- 4 options, only one correct
-- Make it unique and interesting
-
-Block 3 - Quiz #2:
-- Second quiz question with DIFFERENT scenario
-- 4 options, only one correct
-- Test a different aspect of the topic
-- Make it challenging but fair
-
-IMPORTANT: Ensure the output is a single valid JSON object, with no extra text or explanations before or after the JSON. All strings in the JSON must be properly escaped.
-
-Format as JSON:
-{
-  "blocks": [
-    {
-      "type": "text",
-      "title": "Quick Overview",
-      "markdown": "## ${plan.topic}\\n\\nBrief teaching...",
-      "quickActions": ["Action 1", "Action 2"]
-    },
-    {
-      "type": "quiz",
-      "title": "Challenge #1",
-      "recap": "Brief recap",
-      "scenario": "First practical scenario for ${profile.learningGoal}",
-      "question": "First question",
-      "kind": "single",
-      "options": [
-        {"text": "Option 1", "isCorrect": true, "explanation": "Why correct"},
-        {"text": "Option 2", "isCorrect": false, "explanation": "Why wrong"},
-        {"text": "Option 3", "isCorrect": false, "explanation": "Why wrong"},
-        {"text": "Option 4", "isCorrect": false, "explanation": "Why wrong"}
-      ],
-      "penalty_hearts": 1
-    },
-    {
-      "type": "quiz",
-      "title": "Challenge #2",
-      "recap": "Another aspect",
-      "scenario": "DIFFERENT scenario for ${profile.learningGoal}",
-      "question": "Second question",
-      "kind": "single",
-      "options": [
-        {"text": "Option 1", "isCorrect": true, "explanation": "Why correct"},
-        {"text": "Option 2", "isCorrect": false, "explanation": "Why wrong"},
-        {"text": "Option 3", "isCorrect": false, "explanation": "Why wrong"},
-        {"text": "Option 4", "isCorrect": false, "explanation": "Why wrong"}
-      ],
-      "penalty_hearts": 1
-    }
-  ]
-}`;
-    } else if (plan.lessonType === "code") {
-      systemPrompt = `You are an expert developer creating focused coding exercises. Be strict but fair in evaluation criteria. A lesson can involve multiple languages if the topic requires it (e.g., HTML, CSS, and JavaScript for a web development topic).`;
-      userPrompt = `Create a complete coding lesson about "${plan.topic}" for someone working on ${profile.learningGoal}. The language(s) should be inferred from the topic.
-
-Context:
-- Job: ${profile.jobStatus}
-- Experience: ${profile.codingExperience}
-- Goal: ${profile.learningGoal}
-
-Generate these blocks IN THIS EXACT ORDER:
-
-Block 1 - Text (VERY SHORT, 1-2 paragraphs):
-- Teach the concept briefly with a small example
-- Use conversational code snippets inline in the inferred language(s)
-
-Block 2 - Code Challenge:
-- ONE focused function or a small set of related functions to implement (5-15 lines)
-- Clear, specific instructions
-- Starter code in the inferred language(s) with function signature(s)
-- Working solution that solves the problem
-- 3-4 SPECIFIC acceptance criteria (be clear about requirements)
-
-Block 3 - Quiz about the code:
-- Question about the concept or code approach
-- 4 options testing understanding
-- Related to what they just coded
-
-IMPORTANT:
-- Use ONLY the syntax of the language(s) inferred from the topic (never mention other languages)
-- Keep function(s) simple but meaningful
-- Acceptance criteria should be SPECIFIC and TESTABLE (e.g., "Returns correct result for empty input", "Handles edge case X")
-- Make quiz unique and related to the coding task
-
-IMPORTANT: Ensure the output is a single valid JSON object, with no extra text or explanations before or after the JSON. All strings in the JSON must be properly escaped.
-
-Format as JSON:
-{
-  "blocks": [
-    {
-      "type": "text",
-      "title": "Learning ${plan.topic}",
-      "markdown": "## ${plan.topic}\\n\\nTeaching with examples in the inferred language(s)...",
-      "quickActions": ["Action 1", "Action 2"]
-    },
-    {
-      "type": "code",
-      "title": "Code: ${plan.topic}",
-      "instructions": "Clear, specific instructions for the function(s)",
-      "language": "inferred language(s)",
-      "starter": "// function signature(s) with TODO in the inferred language(s)",
-      "solution": "// Complete working solution(s) in the inferred language(s)",
-      "acceptanceCriteria": ["Specific criterion 1", "Specific criterion 2", "Specific criterion 3"],
-      "penalty_hearts": 0
-    },
-    {
-      "type": "quiz",
-      "title": "Understanding the Code",
-      "recap": "About the code concept",
-      "scenario": "Scenario related to the coding task",
-      "question": "Question about approach or concept",
-      "kind": "single",
-      "options": [
-        {"text": "Option 1", "isCorrect": true, "explanation": "Why correct"},
-        {"text": "Option 2", "isCorrect": false, "explanation": "Why wrong"},
-        {"text": "Option 3", "isCorrect": false, "explanation": "Why wrong"},
-        {"text": "Option 4", "isCorrect": false, "explanation": "Why wrong"}
-      ],
-      "penalty_hearts": 1
-    }
-  ]
-}`;
-    } else if (plan.lessonType === "mentor") {
-      systemPrompt = "You are creating an AI mentor session configuration for interactive learning.";
-      userPrompt = `Create a complete mentor lesson about "${plan.topic}" for someone working on ${profile.learningGoal}.
-
-Context:
-- Job: ${profile.jobStatus}
-- Experience: ${profile.codingExperience}
-- Goal: ${profile.learningGoal}
-
-Generate a lesson with these blocks IN THIS ORDER:
-
-Block 1 - Text warm-up (VERY SHORT, 1-2 paragraphs ONLY):
-- Quick prep for the mentor session (1 paragraph)
-- One thing to think about (1 paragraph)
-
-Block 2 - AI Mentor Explanation:
-- Context for the AI to explain the concept
-- Prompt for teaching mode
-- 2 suggested questions
-
-Block 3 - AI Mentor Quiz:
-- Context for the AI to quiz them
-- Prompt for examiner mode
-- Goal of 2 correct answers
-
-IMPORTANT: Ensure the output is a single valid JSON object, with no extra text or explanations before or after the JSON. All strings in the JSON must be properly escaped.
-
-Format as JSON:
-{
-  "blocks": [
-    {
-      "type": "text",
-      "title": "Mentor Session Prep",
-      "markdown": "## Get Ready\\n\\nBrief prep for mentor session...",
-      "quickActions": ["Think of a question", "Review the concept"]
-    },
-    {
-      "type": "ai-mentor",
-      "mode": "explain",
-      "title": "Learn with Mentor",
-      "persona": "supportive mentor",
-      "lessonContext": "${plan.topic} for ${profile.learningGoal}. Experience: ${profile.codingExperience}",
-      "topic": "${plan.topic}",
-      "prompt": "Explain ${plan.topic} using examples from ${profile.learningGoal}. Be practical and use their experience level (${profile.codingExperience}).",
-      "suggestedQuestions": ["Question about concept", "Question about application"]
-    },
-    {
-      "type": "ai-mentor",
-      "mode": "quiz",
-      "title": "Verify Understanding",
-      "persona": "coach",
-      "lessonContext": "${plan.topic} for ${profile.learningGoal}",
-      "topic": "${plan.topic}",
-      "prompt": "Ask 2-3 questions about ${plan.topic} to verify understanding. Wait for correct answers before proceeding.",
-      "quizGoal": 2
-    }
-  ]
-}`;
-    }
+    const userPrompt = generateUserPrompt(plan, profile, topicBlueprint);
 
     const payload = {
       contents: [
         {
-          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+          parts: [{ text: userPrompt }],
         },
       ],
       generationConfig: {

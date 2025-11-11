@@ -10,12 +10,15 @@ import {
   QuizBlock,
   QuizOption,
   UserProfile,
+  TopicBlueprint,
+  TextBlock,
 } from "../lib/types";
 import { hydrateLessonBlocks } from "../services/lessonService";
 
 interface LessonModalProps {
   stage: LessonSummary;
   userProfile: UserProfile;
+  topicBlueprint: TopicBlueprint;
   onClose: () => void;
   onComplete: (lessonId: string, xpReward: number) => void;
   loseLife: () => void;
@@ -25,6 +28,7 @@ interface LessonModalProps {
 const LessonModal: React.FC<LessonModalProps> = ({
   stage,
   userProfile,
+  topicBlueprint,
   onClose,
   onComplete,
   loseLife,
@@ -43,7 +47,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
     setHydrating(true);
     setHydrationError(null);
     try {
-      const blocks = await hydrateLessonBlocks(stage.lesson.plan, userProfile);
+      const blocks = await hydrateLessonBlocks(stage.lesson.plan, userProfile, topicBlueprint);
       setLessonBlocks(blocks);
       onHydrated(stage.id, blocks);
       setCurrentBlockIndex(0);
@@ -54,7 +58,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
     } finally {
       setHydrating(false);
     }
-  }, [stage.id, stage.lesson.plan, userProfile, onHydrated]);
+  }, [stage.id, stage.lesson.plan, userProfile, topicBlueprint, onHydrated]);
 
   useEffect(() => {
     const existingBlocks = stage.lesson.blocks ?? [];
@@ -83,59 +87,16 @@ const LessonModal: React.FC<LessonModalProps> = ({
   const renderBlock = (block: LessonBlock) => {
     switch (block.type) {
       case "text":
-        return (
-          <div>
-            <div className="prose prose-invert prose-cyan max-w-none">
-              <ReactMarkdown
-                components={{
-                  h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
-                  h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3 mt-6" {...props} />,
-                  h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2 mt-4" {...props} />,
-                  p: ({ node, ...props }) => <p className="text-gray-300 leading-relaxed mb-4" {...props} />,
-                  ul: ({ node, ...props }) => <ul className="list-disc list-inside text-gray-300 mb-4 space-y-1" {...props} />,
-                  ol: ({ node, ...props }) => <ol className="list-decimal list-inside text-gray-300 mb-4 space-y-1" {...props} />,
-                  li: ({ node, ...props }) => <li className="text-gray-300" {...props} />,
-                  strong: ({ node, ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
-                  em: ({ node, ...props }) => <em className="italic text-cyan-200" {...props} />,
-                  code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
-                  pre: ({ node, ...props }) => <pre className="bg-gray-800 border border-gray-700 rounded-lg p-4 overflow-x-auto mb-4" {...props} />,
-                }}
-              >
-                {block.markdown}
-              </ReactMarkdown>
-            </div>
-            {block.quickActions && (
-              <ul className="mt-4 space-y-2 rounded-lg bg-gray-900/40 p-4 text-sm text-gray-200">
-                {block.quickActions.map((action) => (
-                  <li key={action} className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-cyan-400" />
-                    {action}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {block.snippet && (
-              <div className="mt-4 rounded-lg border border-gray-700 bg-gray-900 p-3 font-mono text-sm text-cyan-200">
-                {block.snippet}
-              </div>
-            )}
-            <button
-              onClick={handleNextBlock}
-              className="mt-6 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg transition"
-            >
-              Continue
-            </button>
-          </div>
-        );
+        return <TextComponent block={block} onContinue={handleNextBlock} />;
       case "quiz":
         return <QuizComponent block={block} loseLife={loseLife} onCorrect={handleNextBlock} />;
       case "code":
         return (
-      <CodeComponent
-        key={`${stage.id}-${block.title}`}
-        block={block}
-        onContinue={handleNextBlock}
-      />
+          <CodeComponent
+            key={`${stage.id}-${block.title}`}
+            block={block}
+            onContinue={handleNextBlock}
+          />
         );
       case "ai-mentor":
         return (
@@ -214,6 +175,51 @@ const LessonModal: React.FC<LessonModalProps> = ({
   );
 };
 
+const TextComponent: React.FC<{ block: TextBlock; onContinue: () => void }> = ({ block, onContinue }) => {
+  return (
+    <div>
+      <div className="prose prose-invert prose-cyan max-w-none">
+        <ReactMarkdown
+          components={{
+            h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-cyan-300 mb-4" {...props} />,
+            h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-cyan-300 mb-3 mt-6" {...props} />,
+            h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-cyan-400 mb-2 mt-4" {...props} />,
+            p: ({ node, ...props }) => <p className="text-gray-300 leading-relaxed mb-4" {...props} />,
+            ul: ({ node, ...props }) => <ul className="list-disc list-inside text-gray-300 mb-4 space-y-1" {...props} />,
+            ol: ({ node, ...props }) => <ol className="list-decimal list-inside text-gray-300 mb-4 space-y-1" {...props} />,
+            li: ({ node, ...props }) => <li className="text-gray-300" {...props} />,
+            strong: ({ node, ...props }) => <strong className="font-bold text-cyan-200" {...props} />,
+            em: ({ node, ...props }) => <em className="italic text-cyan-200" {...props} />,
+            code: ({ node, ...props }) => <code className="bg-gray-800 text-cyan-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
+            pre: ({ node, ...props }) => <pre className="bg-gray-800 border border-gray-700 rounded-lg p-4 overflow-x-auto mb-4" {...props} />,
+          }}
+        >
+          {block.markdown}
+        </ReactMarkdown>
+      </div>
+      {block.microSteps && (
+        <div className="mt-4">
+          <h4 className="text-lg font-semibold text-cyan-300 mb-2">Micro-steps</h4>
+          <ul className="space-y-2">
+            {block.microSteps.map((step, index) => (
+              <li key={index} className="flex items-center gap-2 p-2 bg-gray-900/40 rounded-lg">
+                <span className="h-2 w-2 rounded-full bg-cyan-400" />
+                <span className="text-sm text-gray-300">{step}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <button
+        onClick={onContinue}
+        className="mt-6 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg transition"
+      >
+        Continue
+      </button>
+    </div>
+  );
+}
+
 const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrect: () => void }> = ({
   block,
   loseLife,
@@ -262,7 +268,7 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
             key={index}
             onClick={() => handleQuizAnswer(option)}
             disabled={optionsLocked}
-            className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${
+            className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${ 
               selectedOption?.text === option.text
                 ? option.isCorrect
                   ? "bg-emerald-500 border-emerald-400"
@@ -277,22 +283,28 @@ const QuizComponent: React.FC<{ block: QuizBlock; loseLife: () => void; onCorrec
       {answerStatus && (
         <div className="mt-4 p-4 rounded-lg bg-gray-700">
           <p
-            className={`font-bold text-lg mb-2 ${
+            className={`font-bold text-lg mb-2 ${ 
               answerStatus === "correct" ? "text-emerald-400" : "text-red-400"
             }`}
           >
             {answerStatus === "correct" ? "Correct!" : "Not quite..."}
           </p>
           <p className="text-gray-300 mb-3">{selectedOption?.explanation}</p>
+          {block.reflectionPrompt && answerStatus === 'correct' && (
+            <div className="mt-4 p-3 bg-cyan-900/30 rounded-lg text-sm text-cyan-200">
+              <p className="font-semibold mb-1">Food for thought:</p>
+              <p>{block.reflectionPrompt}</p>
+            </div>
+          )}
           {answerStatus === "correct" ? (
             <button
               onClick={onCorrect}
-              className="mt-1 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg transition"
+              className="mt-4 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg transition"
             >
               Continue
             </button>
           ) : (
-            <p className="text-sm text-gray-400">Try another option to continue.</p>
+            <p className="text-sm text-gray-400 mt-3">Try another option to continue.</p>
           )}
         </div>
       )}
@@ -420,11 +432,18 @@ const CodeComponent: React.FC<{
           </div>
         </div>
       )}
+      
+      {block.reflectionPrompt && feedback?.passed && (
+        <div className="mt-4 p-3 bg-cyan-900/30 rounded-lg text-sm text-cyan-200">
+          <p className="font-semibold mb-1">Food for thought:</p>
+          <p>{block.reflectionPrompt}</p>
+        </div>
+      )}
 
       {feedback?.passed && (
         <button
           onClick={onContinue}
-          className="w-full rounded-lg bg-cyan-600 py-3 font-bold text-white transition hover:bg-cyan-500"
+          className="w-full rounded-lg bg-cyan-600 py-3 font-bold text-white transition hover:bg-cyan-500 mt-4"
         >
           Continue
         </button>

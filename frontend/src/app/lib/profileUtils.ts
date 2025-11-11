@@ -1,4 +1,4 @@
-import { UserProfile } from "./types";
+import { UserProfile, TopicBlueprint } from "./types";
 
 const sanitize = (value?: string) => value?.trim() ?? "";
 
@@ -48,42 +48,61 @@ export const deriveDisciplineLabel = (profile: UserProfile): string => {
   return match ? match.label : capitalizeWords(goal.split(/[,:-]/)[0] ?? "Programming");
 };
 
-export const deriveLanguageFromProfile = (profile: UserProfile): "javascript" | "python" | "typescript" => {
-  const goal = sanitize(profile.learningGoal);
-  if (!goal) {
-    return "javascript";
-  }
-
-  // Check for explicit language mentions
-  if (/\bpython\b/i.test(goal)) return "python";
-  if (/\btypescript\b|\bts\b/i.test(goal)) return "typescript";
-  if (/\bjavascript\b|\bjs\b|\breact\b|\bnode\b|\bvue\b|\bangular\b/i.test(goal)) return "javascript";
-  
-  // Check for framework/domain patterns
-  if (/django|flask|fastapi|pandas|numpy|data\s+science|machine\s+learning/i.test(goal)) return "python";
-  if (/next\.js|react|vue|angular|frontend|web\s+app/i.test(goal)) return "javascript";
-  
-  // Default to JavaScript
-  return "javascript";
-};
-
-export const introFriendlyTopic = (profile: UserProfile): string =>
-  `Introduction to ${deriveDisciplineLabel(profile)} Concepts`;
-
-export const defaultTopicScaffolding = (profile: UserProfile): string[] => {
+export const generateTopicBlueprintsFallback = (profile: UserProfile): TopicBlueprint[] => {
   const hooks = buildProfileHooks(profile);
   const discipline = deriveDisciplineLabel(profile);
-  const action = hooks.hobbies.length > 0 ? `Projects Inspired by ${hooks.hobbies.join(', ')}` : "Side Projects";
+  const hobby = hooks.hobbies[0] || hooks.captivates;
 
-  const baseTopics = [
-    introFriendlyTopic(profile),
-    `${discipline} Fundamentals: Variables & Data Types`,
-    `${discipline} Control Flow Foundations`,
-    `Practical ${discipline} Patterns for ${action}`,
-    `Applying ${discipline} to ${hooks.shortGoal}`,
-    `Review & Reflection for ${hooks.reason}`,
+  const topics: Omit<TopicBlueprint, 'id'>[] = [
+    {
+      title: `Introduction to ${discipline}`,
+      tagline: `A personalized starting point for your journey into ${discipline}, tailored to your goal of ${hooks.shortGoal}.`,
+      whyItMatters: `As a ${hooks.jobStatus} who is motivated by ${hooks.reason}, understanding these fundamentals is the first step toward achieving your learning goal.`,
+      skillsToUnlock: ["core concepts", "foundational syntax", "problem-solving mindset"],
+      hobbyHook: `We'll connect these concepts to your interest in ${hobby}.`,
+      targetExperience: hooks.experience,
+      recommendedArtifacts: ["streak challenge", "mentor chat"],
+    },
+    {
+      title: `${discipline} Fundamentals: Variables & Data`,
+      tagline: "Learn how to store and manage information, a key skill for any developer.",
+      whyItMatters: `To build anything meaningful for your goal of ${hooks.shortGoal}, you need to handle data. This is crucial for a ${hooks.jobStatus}.`,
+      skillsToUnlock: ["data storage", "memory management", "typing"],
+      hobbyHook: `Think about how you would model data related to ${hobby}.`,
+      targetExperience: hooks.experience,
+      recommendedArtifacts: ["code challenge", "quiz"],
+    },
+    {
+      title: `${discipline} Control Flow`,
+      tagline: "Direct the flow of your application and make decisions in code.",
+      whyItMatters: `Your motivation to ${hooks.reason} will be amplified when you can create dynamic applications that respond to user input.`,
+      skillsToUnlock: ["conditional logic", "loops", "functions"],
+      hobbyHook: `We can apply this to create a simple interactive experience related to ${hobby}.`,
+      targetExperience: hooks.experience,
+      recommendedArtifacts: ["code challenge", "mentor chat"],
+    },
+    {
+      title: `Practical Patterns for ${discipline}`,
+      tagline: "Discover common patterns that will make your code more professional and scalable.",
+      whyItMatters: `As a ${hooks.jobStatus}, writing clean, maintainable code is a key skill that will help you achieve ${hooks.shortGoal}.`,
+      skillsToUnlock: ["design patterns", "code structure", "modularity"],
+      hobbyHook: `These patterns can be used to structure a project inspired by ${hobby}.`,
+      targetExperience: hooks.experience,
+      recommendedArtifacts: ["streak challenge", "code review"],
+    },
+    {
+      title: `Applying ${discipline} to ${hooks.shortGoal}`,
+      tagline: "A capstone topic to apply everything you've learned to a real-world scenario.",
+      whyItMatters: `This is where your motivation to ${hooks.reason} pays off. You'll build something tangible that you can be proud of.`,
+      skillsToUnlock: ["project planning", "integration", "debugging"],
+      hobbyHook: `Let's build a mini-project related to ${hobby} that you can share.`,
+      targetExperience: hooks.experience,
+      recommendedArtifacts: ["mentor chat", "code challenge"],
+    },
   ];
 
-  const uniqueTopics = Array.from(new Set(baseTopics.map((topic) => topic.trim()))).filter(Boolean);
-  return uniqueTopics.slice(0, 6);
+  return topics.map((topic, index) => ({
+    ...topic,
+    id: `fallback-${index}`,
+  }));
 };

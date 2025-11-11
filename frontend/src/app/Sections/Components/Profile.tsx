@@ -1,6 +1,6 @@
 "use client";
 
-import { LessonSummary, StageStatus, UserProfile } from "../../lib/types";
+import { LessonSummary, StageStatus, UserProfile, RoadmapTopic, TopicBlueprint } from "../../lib/types";
 import React, { useMemo } from "react";
 
 interface ProfileProps {
@@ -8,8 +8,8 @@ interface ProfileProps {
   xp: number;
   streak: number;
   lives: number;
-  roadmap: LessonSummary[];
-  mainTopics: string[];
+  roadmap: RoadmapTopic[];
+  mainTopics: TopicBlueprint[];
   onResetRoadmap: () => void;
   onLogout: () => void;
 }
@@ -19,7 +19,7 @@ interface StorageSnapshot {
   topicsCompleted: boolean;
   storedRoadmapCount: number;
   storedRoadmapCompleted: number;
-  storedTopics: string[];
+  storedTopics: TopicBlueprint[];
   lastProfileSync: string | null;
   roadmapUpdatedAt: string | null;
 }
@@ -60,25 +60,25 @@ const Profile: React.FC<ProfileProps> = ({
     void safeRoadmap;
     void safeMainTopics;
 
-    const parseStringArray = (value: string | null) => {
-      if (!value) return [] as string[];
+    const parseTopics = (value: string | null) => {
+      if (!value) return [] as TopicBlueprint[];
       try {
         const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+        return Array.isArray(parsed) ? parsed : [];
       } catch (error) {
-        console.warn("Unable to parse stored array", error);
-        return [] as string[];
+        console.warn("Unable to parse stored topics", error);
+        return [] as TopicBlueprint[];
       }
     };
 
     const parseRoadmapEntries = (value: string | null) => {
-      if (!value) return [] as Array<{ status?: string }>;
+      if (!value) return [] as RoadmapTopic[];
       try {
         const parsed = JSON.parse(value);
         return Array.isArray(parsed) ? parsed : [];
       } catch (error) {
         console.warn("Unable to parse stored roadmap entries", error);
-        return [] as Array<{ status?: string }>;
+        return [] as RoadmapTopic[];
       }
     };
 
@@ -86,24 +86,26 @@ const Profile: React.FC<ProfileProps> = ({
       window.localStorage.getItem("roadmap")
     );
     const storedRoadmapCompleted = storedRoadmapEntries.reduce(
-      (count, entry) => {
-        const status = entry?.status;
-        if (status === StageStatus.Completed || status === "completed") {
-          return count + 1;
-        }
-        return count;
+      (count, topic) => {
+        return count + topic.lessons.reduce((lessonCount, lesson) => {
+          if (lesson.status === StageStatus.Completed) {
+            return lessonCount + 1;
+          }
+          return lessonCount;
+        }, 0);
       },
       0
     );
+    const totalLessons = storedRoadmapEntries.reduce((count, topic) => count + topic.lessons.length, 0);
 
     return {
       surveyCompleted:
         window.localStorage.getItem("surveyCompleted") === "true",
       topicsCompleted:
         window.localStorage.getItem("topicsCompleted") === "true",
-      storedRoadmapCount: storedRoadmapEntries.length,
+      storedRoadmapCount: totalLessons,
       storedRoadmapCompleted,
-      storedTopics: parseStringArray(window.localStorage.getItem("mainTopics")),
+      storedTopics: parseTopics(window.localStorage.getItem("mainTopics")),
       lastProfileSync: window.localStorage.getItem("lastProfileSync"),
       roadmapUpdatedAt: window.localStorage.getItem("roadmapUpdatedAt"),
     };
@@ -111,15 +113,18 @@ const Profile: React.FC<ProfileProps> = ({
 
   const progressStats = useMemo(() => {
     if (safeRoadmap.length > 0) {
-      const completed = safeRoadmap.reduce((count, lesson) => {
-        if (lesson.status === StageStatus.Completed) {
-          return count + 1;
-        }
-        return count;
+      const completed = safeRoadmap.reduce((count, topic) => {
+        return count + topic.lessons.reduce((lessonCount, lesson) => {
+          if (lesson.status === StageStatus.Completed) {
+            return lessonCount + 1;
+          }
+          return lessonCount;
+        }, 0);
       }, 0);
+      const total = safeRoadmap.reduce((count, topic) => count + topic.lessons.length, 0);
       return {
         completedLessons: completed,
-        totalLessons: safeRoadmap.length,
+        totalLessons: total,
       };
     }
 
@@ -362,12 +367,12 @@ const Profile: React.FC<ProfileProps> = ({
         <p className="mt-2 text-sm text-gray-400">Synced with local storage</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {snapshotTopics.length ? (
-            snapshotTopics.map((topic: string) => (
+            snapshotTopics.map((topic: TopicBlueprint) => (
               <span
-                key={topic}
+                key={topic.id}
                 className="rounded-full border border-cyan-500/40 bg-cyan-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-cyan-100"
               >
-                {topic}
+                {topic.title}
               </span>
             ))
           ) : (

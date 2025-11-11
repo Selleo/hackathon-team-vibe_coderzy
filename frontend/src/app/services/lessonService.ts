@@ -1,4 +1,4 @@
-import { LessonBlock, LessonPlan, UserProfile } from "../lib/types";
+import { LessonBlock, LessonPlan, UserProfile, TopicBlueprint } from "../lib/types";
 
 const headers = {
   "Content-Type": "application/json",
@@ -16,11 +16,12 @@ const parseError = async (response: Response) => {
 export const hydrateLessonBlocks = async (
   plan: LessonPlan,
   profile: UserProfile,
+  topicBlueprint: TopicBlueprint,
 ): Promise<LessonBlock[]> => {
   const response = await fetch("/api/lesson", {
     method: "POST",
     headers,
-    body: JSON.stringify({ plan, profile }),
+    body: JSON.stringify({ plan, profile, topicBlueprint }),
   });
 
   if (!response.ok) {

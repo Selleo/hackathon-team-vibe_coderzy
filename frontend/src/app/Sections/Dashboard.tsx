@@ -25,9 +25,9 @@ interface DashboardProps {
   lives: number;
   streak: number;
   xp: number;
-  roadmap: LessonSummary[];
+  roadmap: RoadmapTopic[];
   userProfile: UserProfile;
-  mainTopics: string[];
+  mainTopics: TopicBlueprint[];
   loseLife: () => void;
   completeLesson: (lessonId: string, xpReward: number) => void;
   onLessonHydrated: (lessonId: string, blocks: LessonBlock[]) => void;
@@ -49,9 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onLogout,
 }) => {
   const [activeTab, setActiveTab] = useState("Roadmap");
-  const [selectedLesson, setSelectedLesson] = useState<LessonSummary | null>(
-    null
-  );
+  const [selectedLesson, setSelectedLesson] = useState<{ lesson: LessonSummary; topicBlueprint: TopicBlueprint } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   // close sidebar on larger screens and keep it open on md+ by default
@@ -216,7 +214,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         className={`flex-1 p-4 pt-20 sm:p-6 md:p-8 md:pt-8 bg-gray-900 ml-0 min-h-screen`}
       >
         {activeTab === "Roadmap" && (
-          <Roadmap stages={roadmap} onStageSelect={setSelectedLesson} />
+          <Roadmap roadmap={roadmap} userProfile={userProfile} onStageSelect={(stage, topicBlueprint) => setSelectedLesson({ lesson: stage, topicBlueprint })} />
         )}
         {activeTab === "Chat with Mentor" && (
           <ChatWithMentor userProfile={userProfile} />
@@ -238,7 +236,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {selectedLesson && (
         <LessonModal
-          stage={selectedLesson}
+          stage={selectedLesson.lesson}
+          topicBlueprint={selectedLesson.topicBlueprint}
           onClose={() => setSelectedLesson(null)}
           onComplete={completeLesson}
           loseLife={loseLife}
@@ -249,5 +248,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     </div>
   );
 };
+
 
 export default Dashboard;

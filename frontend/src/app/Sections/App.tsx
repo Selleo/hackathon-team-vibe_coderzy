@@ -5,25 +5,16 @@ import Dashboard from "./Dashboard";
 import Survey from "./Survey";
 import MainTopics from "./MainTopics";
 import Login from "./Login";
-import { LessonBlock, LessonSummary, StageStatus, UserProfile } from "../lib/types";
-
-interface StoredLessonSummary extends Omit<LessonSummary, "status"> {
-  status: StageStatus;
-}
-
-interface RoadmapLessonResponse {
-  title: string;
-  description: string;
-}
+import { LessonBlock, LessonSummary, StageStatus, UserProfile, TopicBlueprint, RoadmapTopic } from "../lib/types";
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [topicsCompleted, setTopicsCompleted] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [mainTopics, setMainTopics] = useState<string[]>([]);
+  const [mainTopics, setMainTopics] = useState<TopicBlueprint[]>([]);
   const [loadingTopics, setLoadingTopics] = useState(false);
-  const [roadmap, setRoadmap] = useState<LessonSummary[]>([]);
+  const [roadmap, setRoadmap] = useState<RoadmapTopic[]>([]);
   const [loadingRoadmap, setLoadingRoadmap] = useState(false);
 
   const [lives, setLives] = useState(3);
@@ -59,7 +50,7 @@ const App = () => {
 
       const storedMainTopics = localStorage.getItem("mainTopics");
       if (storedMainTopics) {
-        const parsedTopics = JSON.parse(storedMainTopics);
+        const parsedTopics = JSON.parse(storedMainTopics) as TopicBlueprint[];
         if (Array.isArray(parsedTopics)) {
           setMainTopics(parsedTopics);
         }
@@ -67,16 +58,9 @@ const App = () => {
 
       const storedRoadmap = localStorage.getItem("roadmap");
       if (storedRoadmap) {
-        const parsedRoadmap = JSON.parse(
-          storedRoadmap
-        ) as StoredLessonSummary[];
+        const parsedRoadmap = JSON.parse(storedRoadmap) as RoadmapTopic[];
         if (Array.isArray(parsedRoadmap)) {
-          setRoadmap(
-            parsedRoadmap.map((lesson) => ({
-              ...lesson,
-              status: lesson.status as StageStatus,
-            }))
-          );
+          setRoadmap(parsedRoadmap);
         }
       }
     } catch (error) {
@@ -149,13 +133,12 @@ const App = () => {
       setMainTopics(Array.isArray(data.topics) ? data.topics : []);
     } catch (error) {
       console.error("Error fetching topics:", error);
-      // Handle error, maybe set some default topics
     } finally {
       setLoadingTopics(false);
     }
   }, []);
 
-  const handleTopicsComplete = useCallback(async (topics: string[]) => {
+  const handleTopicsComplete = useCallback(async (topics: TopicBlueprint[]) => {
     setMainTopics(topics);
     setTopicsCompleted(true);
     setLoadingRoadmap(true);
@@ -171,27 +154,8 @@ const App = () => {
         }),
       });
       const data = await response.json();
-      const lessons = Array.isArray(data.lessons) ? data.lessons : [];
-      
-      const newRoadmap: LessonSummary[] = lessons.map((lesson: any) => ({
-        id: lesson.id,
-        title: lesson.title,
-        status: lesson.status,
-        lesson: {
-          id: lesson.id,
-          title: lesson.title,
-          track: lesson.topic,
-          chapter: lesson.topic,
-          estimated_minutes: 10,
-          xp_reward: lesson.xp_reward,
-          prerequisites: [] as string[],
-          blocks: [],
-          lessonType: lesson.plan?.lessonType,
-          plan: lesson.plan,
-        },
-      }));
-      
-      setRoadmap(newRoadmap);
+      const roadmapTopics = Array.isArray(data.lessons) ? data.lessons : [];
+      setRoadmap(roadmapTopics);
     } catch (error) {
       console.error("Error fetching roadmap:", error);
     } finally {
@@ -205,29 +169,41 @@ const App = () => {
 
   const completeLesson = (lessonId: string, xpReward: number) => {
     setRoadmap((prevRoadmap) => {
-      const currentLesson = prevRoadmap.find((lesson) => lesson.id === lessonId);
-      
-      // Only give XP if the lesson wasn't already completed
-      if (currentLesson?.status !== StageStatus.Completed) {
+      let originalLesson: LessonSummary | undefined;
+      for (const topic of prevRoadmap) {
+        originalLesson = topic.lessons.find(l => l.id === lessonId);
+        if (originalLesson) break;
+      }
+
+      if (originalLesson?.status !== StageStatus.Completed) {
         setXp((prev) => prev + xpReward);
         setStreak((prev) => (prev === 0 ? 1 : prev));
       }
-      
-      const newRoadmap = prevRoadmap.map((lesson) =>
-        lesson.id === lessonId
-          ? { ...lesson, status: StageStatus.Completed }
-          : lesson
-      );
 
-      const completedIndex = newRoadmap.findIndex(
-        (lesson) => lesson.id === lessonId
-      );
-      
-      // Only unlock the next lesson if it's currently locked
-      if (completedIndex !== -1 && completedIndex + 1 < newRoadmap.length) {
-        const nextLesson = newRoadmap[completedIndex + 1];
-        if (nextLesson.status === StageStatus.Locked) {
-          newRoadmap[completedIndex + 1].status = StageStatus.Unlocked;
+      const newRoadmap = prevRoadmap.map(topic => {
+        const newLessons = topic.lessons.map(lesson => {
+          if (lesson.id === lessonId) {
+            return { ...lesson, status: StageStatus.Completed };
+          }
+          return lesson;
+        });
+
+        let lessonIndex = newLessons.findIndex(l => l.id === lessonId);
+        if (lessonIndex !== -1 && lessonIndex + 1 < newLessons.length) {
+          if (newLessons[lessonIndex + 1].status === StageStatus.Locked) {
+            newLessons[lessonIndex + 1].status = StageStatus.Unlocked;
+          }
+        }
+        return { ...topic, lessons: newLessons };
+      });
+
+      // Unlock first lesson of next topic
+      let topicIndex = newRoadmap.findIndex(t => t.lessons.some(l => l.id === lessonId));
+      if (topicIndex !== -1 && topicIndex + 1 < newRoadmap.length) {
+        const currentTopic = newRoadmap[topicIndex];
+        const allLessonsCompleted = currentTopic.lessons.every(l => l.status === StageStatus.Completed);
+        if (allLessonsCompleted) {
+          newRoadmap[topicIndex + 1].lessons[0].status = StageStatus.Unlocked;
         }
       }
 
@@ -237,11 +213,14 @@ const App = () => {
 
   const handleLessonHydrated = useCallback((lessonId: string, blocks: LessonBlock[]) => {
     setRoadmap((prevRoadmap) => 
-      prevRoadmap.map((lesson) =>
-        lesson.id === lessonId
-          ? { ...lesson, lesson: { ...lesson.lesson, blocks } }
-          : lesson
-      )
+      prevRoadmap.map(topic => ({
+        ...topic,
+        lessons: topic.lessons.map(lesson =>
+          lesson.id === lessonId
+            ? { ...lesson, lesson: { ...lesson.lesson, blocks } }
+            : lesson
+        )
+      }))
     );
   }, []);
 
