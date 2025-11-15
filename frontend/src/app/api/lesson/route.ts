@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { LessonBlock, LessonPlan, UserProfile, TopicBlueprint } from "../../lib/types";
 import { buildProfileHooks } from "../../lib/profileUtils";
+import {
+  callGrok,
+  extractResponseText,
+  GrokConfigurationError,
+  GrokRequestError,
+} from "../../lib/grok";
 
 interface LessonRequestBody {
   plan: LessonPlan;
   profile: UserProfile;
   topicBlueprint: TopicBlueprint;
 }
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 const sanitize = (value?: string) => value?.trim() ?? "";
 const joinOrFallback = (values: string[], fallback: string) => {
@@ -352,49 +355,24 @@ export async function POST(req: Request) {
 
   const { plan, profile, topicBlueprint } = body;
 
-  if (!GEMINI_API_KEY) {
-    return NextResponse.json(
-      { error: "Gemini API key not configured." },
-      { status: 500 },
-    );
-  }
-
   try {
     const userPrompt = generateUserPrompt(plan, profile, topicBlueprint);
 
-    const payload = {
-      contents: [
+    const response = await callGrok(
+      [
         {
-          parts: [{ text: userPrompt }],
+          role: "system",
+          content:
+            "You are ViaMent's curriculum architect. Follow the user's instructions carefully and respond with JSON only.",
         },
+        { role: "user", content: userPrompt },
       ],
-      generationConfig: {
-        temperature: 0.7,
-        response_mime_type: "application/json",
-      },
-    };
+      { temperature: 0.7, maxOutputTokens: 2000 },
+    );
 
-    const response = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Gemini lesson error", data);
-      return NextResponse.json(
-        { error: "Failed to generate lesson content." },
-        { status: 502 },
-      );
-    }
-
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const content = extractResponseText(response);
     if (!content) {
-      console.error("Gemini lesson empty response", data);
+      console.error("Lesson model returned empty content", response);
       return NextResponse.json(
         { error: "Lesson model returned empty content." },
         { status: 502 },
@@ -405,7 +383,7 @@ export async function POST(req: Request) {
     try {
       parsed = JSON.parse(content);
     } catch (jsonError) {
-      console.error("Gemini lesson JSON parse error", jsonError, content);
+      console.error("Lesson JSON parse error", jsonError, content);
       return NextResponse.json(
         { error: "Lesson model returned invalid JSON." },
         { status: 502 },
@@ -416,6 +394,17 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ blocks });
   } catch (error) {
+    if (error instanceof GrokConfigurationError) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (error instanceof GrokRequestError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    }
+
     console.error("Lesson generation error", error);
     return NextResponse.json(
       { error: "Unable to generate lesson content." },

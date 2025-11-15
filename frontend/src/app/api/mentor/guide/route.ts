@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 
-interface GuideRequestBody {
-  lessonContext?: string;
-  proficiency?: string;
-  userWork?: string;
-  question?: string;
-}
-
-import { NextResponse } from "next/server";
+import {
+  callGrok,
+  extractResponseText,
+  GrokConfigurationError,
+  GrokRequestError,
+} from "../../../lib/grok";
 
 interface GuideRequestBody {
   lessonContext?: string;
@@ -15,18 +13,8 @@ interface GuideRequestBody {
   userWork?: string;
   question?: string;
 }
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 export async function POST(req: Request) {
-  if (!GEMINI_API_KEY) {
-    return NextResponse.json(
-      { error: "GEMINI_API_KEY is not configured on the server." },
-      { status: 500 },
-    );
-  }
-
   const body = (await req.json()) as GuideRequestBody;
   const { lessonContext, proficiency, userWork, question } = body;
 
@@ -37,42 +25,35 @@ export async function POST(req: Request) {
     );
   }
 
-  const payload = {
-    contents: [
-      {
-        parts: [
-          {
-            text: `You are "Mentor" in Guide mode. Offer short Socratic guidance (max 4 sentences) and never give away the full solution unless the learner is clearly stuck.
-Proficiency: ${proficiency}\nLesson context: ${lessonContext}\nLearner work/question: ${userWork}\nPrompt: ${question}`,
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.7,
-    },
-  };
-
   try {
-    const response = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const messages = [
+      {
+        role: "system" as const,
+        content:
+          "You are 'Mentor' in Guide mode. Offer short Socratic guidance (max 4 sentences) and never give away the full solution unless the learner is clearly stuck.",
       },
-      body: JSON.stringify(payload),
-    });
+      {
+        role: "user" as const,
+        content: `Proficiency: ${proficiency}\nLesson context: ${lessonContext}\nLearner work/question: ${userWork}\nPrompt: ${question}`,
+      },
+    ];
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Gemini guide error", data);
-      return NextResponse.json({ error: "Failed to contact Gemini." }, { status: 502 });
+    const response = await callGrok(messages, { temperature: 0.7, maxOutputTokens: 300 });
+    const content = extractResponseText(response);
+    return NextResponse.json({ feedback: content.trim() });
+  } catch (error) {
+    if (error instanceof GrokConfigurationError) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text.trim() ?? "";
-    return NextResponse.json({ feedback: content });
-  } catch (error) {
+    if (error instanceof GrokRequestError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    }
+
     console.error("Guide route error", error);
-    return NextResponse.json({ error: "Unexpected error calling Gemini." }, { status: 500 });
+    return NextResponse.json({ error: "Unexpected error calling Grok." }, { status: 500 });
   }
 }

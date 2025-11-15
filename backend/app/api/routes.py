@@ -1,16 +1,25 @@
 """Route definitions for the backend APIs."""
 
+import os
 from datetime import datetime
+from functools import lru_cache
 from typing import Literal
 
+import httpx
 import toml
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 health_router = APIRouter()
 vibe_router = APIRouter()
 chat_router = APIRouter()
 dependencies_router = APIRouter()
+
+GROK_MODEL_ENV = "GROK_MODEL"
+DEFAULT_GROK_MODEL = "grok-4-fast"
+MAX_HISTORY_MESSAGES = 6
+GROK_API_URL = "https://api.x.ai/v1/chat/completions"
+GROK_TIMEOUT_SECONDS = float(os.getenv("GROK_TIMEOUT", 45))
 
 
 def get_pyproject_data():
@@ -115,7 +124,12 @@ def chat_with_mentor(request: ChatRequest) -> ChatResponse:
         user_data_store[user_id]["goals"].extend(goals)
 
     # Generate contextual response based on user profile and message
-    response = generate_mentor_response(request.userProfile, user_message, user_data_store[user_id])
+    response = generate_mentor_response(
+        request.userProfile,
+        request.message,
+        user_data_store[user_id],
+        request.conversationHistory,
+    )
 
     return ChatResponse(response=response, userInfo=user_data_store[user_id])
 
@@ -148,48 +162,113 @@ def extract_topics(message: str) -> list[str]:
 
 
 def generate_mentor_response(
-    profile: UserProfile, message: str, user_data: dict
+    profile: UserProfile,
+    message: str,
+    user_data: dict,
+    conversation_history: list[Message],
 ) -> str:
-    """Generate a contextual response based on user profile and history."""
-    experience = profile.experience.lower()
-    conversation_count = user_data["conversation_count"]
+    """Generate a contextual response powered by Grok."""
 
-    # Personalized responses based on experience level
-    if "pomoc" in message or "pytanie" in message or "?" in message:
-        if experience == "beginner":
-            return (
-                "Oczywiście! Jako początkujący programista, nie bój się zadawać pytań. "
-                "Każdy ekspert kiedyś zaczynał od podstaw. Opowiedz mi więcej o tym, "
-                "z czym masz problem, a postaram się wytłumaczyć to w prosty sposób."
-            )
-        elif experience == "intermediate":
-            return (
-                "Świetnie, że pytasz! Z twoim poziomem doświadczenia możemy zgłębić "
-                "temat bardziej szczegółowo. Co dokładnie chciałbyś zrozumieć lepiej?"
-            )
-        else:
-            return (
-                "Interesujące pytanie! Jako zaawansowany programista pewnie szukasz "
-                "głębszego zrozumienia. Omówmy to od strony technicznej i best practices."
-            )
-
-    if "dziękuję" in message or "dzięki" in message:
-        return (
-            "Nie ma za co! Cieszę się, że mogę pomóc. Pamiętaj, że jestem tu zawsze, "
-            "gdy potrzebujesz wsparcia w nauce programowania. Powodzenia!"
-        )
-
-    if conversation_count == 1:
-        return (
-            f"Widzę, że jesteś na poziomie {profile.experience} i pracujesz z intensywnością "
-            f"{profile.intensity}. To świetnie! Jestem tu, aby pomóc ci w nauce programowania. "
-            "Możesz zadawać mi pytania o konkretne technologie, prosić o wyjaśnienia koncepcji, "
-            "albo po prostu porozmawiać o swoich celach programistycznych. Czym mogę ci pomóc?"
-        )
-
-    # Default response
-    return (
-        "Rozumiem. Jako twój mentor programowania, mogę pomóc ci z różnymi aspektami nauki. "
-        "Czy mógłbyś rozwinąć swoją myśl? Chętnie pomogę ci znaleźć najlepsze rozwiązanie "
-        "lub wyjaśnię trudniejsze koncepcje."
+    user_context = (
+        f"Doświadczenie: {profile.experience}\n"
+        f"Intensywność: {profile.intensity}\n"
+        f"Zainteresowania: {', '.join(user_data['interests']) or 'brak'}\n"
+        f"Wyzwania: {', '.join(user_data['challenges']) or 'brak'}\n"
+        f"Cele: {', '.join(user_data['goals']) or 'brak'}\n"
     )
+
+    mentor_prompt = (
+        "Twoim zadaniem jest wspierać polskojęzycznego adepta programowania. "
+        "Buduj krótkie, konkretne odpowiedzi (3-5 zdań), proponuj kolejne kroki lub pytania "
+        "pogłębiające temat i zachowaj przyjazny ton mentora. "
+        "Jeśli proszą o kod, pokaż fragment i krótko objaśnij koncepcję."
+    )
+
+    latest_history = format_conversation_history(conversation_history)
+
+    user_prompt = (
+        f"Profil użytkownika:\n{user_context}\n"
+        f"Historia ostatnich rozmów:\n{latest_history}\n\n"
+        f"Aktualna wiadomość ucznia:\n{message}\n\n"
+        "Udziel odpowiedzi w języku polskim, odwołując się do kontekstu "
+        "i proponując kolejne działania lub pytania pomagające w nauce."
+    )
+
+    chat_messages = [
+        {"role": "system", "content": mentor_prompt},
+        *conversation_messages(conversation_history),
+        {"role": "user", "content": user_prompt},
+    ]
+
+    return call_grok_api(chat_messages)
+
+
+def conversation_messages(history: list[Message]) -> list[dict[str, str]]:
+    """Transform stored Message objects into Grok chat messages."""
+    trimmed = history[-MAX_HISTORY_MESSAGES:]
+    messages: list[dict[str, str]] = []
+    for item in trimmed:
+        role = "assistant" if item.role in {"assistant", "model"} else "user"
+        messages.append({"role": role, "content": item.content})
+
+    return messages
+
+
+def format_conversation_history(history: list[Message]) -> str:
+    """Prepare a trimmed conversation history string for prompting."""
+    if not history:
+        return "Brak wcześniejszych wiadomości."
+
+    trimmed = history[-MAX_HISTORY_MESSAGES:]
+    lines = [f"{msg.role}: {msg.content}" for msg in trimmed]
+    return "\n".join(lines)
+
+
+@lru_cache(maxsize=1)
+def get_http_client() -> httpx.Client:
+    """Return a configured HTTP client for Grok requests."""
+    return httpx.Client(timeout=GROK_TIMEOUT_SECONDS)
+
+
+def call_grok_api(messages: list[dict[str, str]]) -> str:
+    """Send a chat completion request to Grok and return the text reply."""
+    api_key = os.getenv("GROK_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GROK_API_KEY is not configured")
+
+    model = os.getenv(GROK_MODEL_ENV, DEFAULT_GROK_MODEL) or DEFAULT_GROK_MODEL
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": 0.7,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    client = get_http_client()
+    try:
+        response = client.post(GROK_API_URL, headers=headers, json=payload)
+    except httpx.RequestError as exc:  # pragma: no cover - network call mocked in tests
+        raise HTTPException(status_code=502, detail="Unable to reach Grok API") from exc
+
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail="Invalid response from Grok API") from exc
+
+    if response.status_code >= 400:
+        detail = data.get("error", {}).get("message", "Grok request failed")
+        raise HTTPException(status_code=502, detail=detail)
+    choices = data.get("choices") or []
+    if not choices:
+        raise HTTPException(status_code=502, detail="Grok API returned no choices")
+
+    message = choices[0].get("message", {})
+    content = message.get("content")
+    if isinstance(content, str) and content.strip():
+        return content.strip()
+
+    raise HTTPException(status_code=502, detail="Grok API returned empty content")
