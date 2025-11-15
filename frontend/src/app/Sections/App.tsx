@@ -4,30 +4,60 @@ import { useState, useCallback, useEffect } from "react";
 import Dashboard from "./Dashboard";
 import Survey from "./Survey";
 import MainTopics from "./MainTopics";
-import Login from "./Login";
-import { LessonBlock, LessonSummary, StageStatus, UserProfile } from "../lib/types";
+import { LessonBlock, LessonSummary, StageStatus, UserProfile, TopicBlueprint, RoadmapTopic } from "../lib/types";
 
-interface StoredLessonSummary extends Omit<LessonSummary, "status"> {
-  status: StageStatus;
-}
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-interface RoadmapLessonResponse {
-  title: string;
-  description: string;
-}
+const startOfDay = (date: Date) => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+const calculateDayGap = (currentDate: Date, previousDate: Date) => {
+  return Math.floor((startOfDay(currentDate).getTime() - startOfDay(previousDate).getTime()) / MS_PER_DAY);
+};
+
+const formatDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateKey = (value: string) => {
+  const sanitized = value.slice(0, 10);
+  const parts = sanitized.split("-");
+  if (parts.length !== 3) {
+    return null;
+  }
+  const [yearStr, monthStr, dayStr] = parts;
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
+    return null;
+  }
+  const parsed = new Date(year, month - 1, day);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+};
 
 const App = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [topicsCompleted, setTopicsCompleted] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [mainTopics, setMainTopics] = useState<string[]>([]);
+  const [mainTopics, setMainTopics] = useState<TopicBlueprint[]>([]);
   const [loadingTopics, setLoadingTopics] = useState(false);
-  const [roadmap, setRoadmap] = useState<LessonSummary[]>([]);
+  const [roadmap, setRoadmap] = useState<RoadmapTopic[]>([]);
   const [loadingRoadmap, setLoadingRoadmap] = useState(false);
 
   const [lives, setLives] = useState(3);
   const [streak, setStreak] = useState(0);
+  const [lastStreakDate, setLastStreakDate] = useState<string | null>(null);
   const [xp, setXp] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -37,11 +67,6 @@ const App = () => {
     }
 
     try {
-      const storedIsLoggedIn = localStorage.getItem("userIsLoggedIn");
-      if (storedIsLoggedIn === "true") {
-        setIsLoggedIn(true);
-      }
-
       const storedSurveyCompleted = localStorage.getItem("surveyCompleted");
       if (storedSurveyCompleted === "true") {
         setSurveyCompleted(true);
@@ -52,6 +77,33 @@ const App = () => {
         setTopicsCompleted(true);
       }
 
+      const storedStreak = localStorage.getItem("userStreak");
+      const storedStreakDate = localStorage.getItem("userStreakDate");
+
+      let hydratedStreak = storedStreak ? Number.parseInt(storedStreak, 10) : 0;
+      if (Number.isNaN(hydratedStreak) || hydratedStreak < 0) {
+        hydratedStreak = 0;
+      }
+
+      let normalizedLastStreakDate: Date | null = null;
+      if (storedStreakDate) {
+        normalizedLastStreakDate = parseDateKey(storedStreakDate);
+        if (normalizedLastStreakDate) {
+          const gap = calculateDayGap(new Date(), normalizedLastStreakDate);
+          if (gap > 1) {
+            hydratedStreak = 0;
+            normalizedLastStreakDate = null;
+          }
+        }
+      }
+
+      if (!normalizedLastStreakDate && hydratedStreak > 0) {
+        hydratedStreak = 0;
+      }
+
+      setStreak(hydratedStreak);
+      setLastStreakDate(normalizedLastStreakDate ? formatDateKey(normalizedLastStreakDate) : null);
+
       const storedUserProfile = localStorage.getItem("userProfile");
       if (storedUserProfile) {
         setUserProfile(JSON.parse(storedUserProfile));
@@ -59,7 +111,7 @@ const App = () => {
 
       const storedMainTopics = localStorage.getItem("mainTopics");
       if (storedMainTopics) {
-        const parsedTopics = JSON.parse(storedMainTopics);
+        const parsedTopics = JSON.parse(storedMainTopics) as TopicBlueprint[];
         if (Array.isArray(parsedTopics)) {
           setMainTopics(parsedTopics);
         }
@@ -67,16 +119,9 @@ const App = () => {
 
       const storedRoadmap = localStorage.getItem("roadmap");
       if (storedRoadmap) {
-        const parsedRoadmap = JSON.parse(
-          storedRoadmap
-        ) as StoredLessonSummary[];
+        const parsedRoadmap = JSON.parse(storedRoadmap) as RoadmapTopic[];
         if (Array.isArray(parsedRoadmap)) {
-          setRoadmap(
-            parsedRoadmap.map((lesson) => ({
-              ...lesson,
-              status: lesson.status as StageStatus,
-            }))
-          );
+          setRoadmap(parsedRoadmap);
         }
       }
     } catch (error) {
@@ -133,6 +178,23 @@ const App = () => {
     }
   }, [roadmap, isHydrated]);
 
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") {
+      return;
+    }
+    if (streak <= 0 && !lastStreakDate) {
+      localStorage.removeItem("userStreak");
+      localStorage.removeItem("userStreakDate");
+      return;
+    }
+    localStorage.setItem("userStreak", String(streak));
+    if (lastStreakDate) {
+      localStorage.setItem("userStreakDate", lastStreakDate);
+    } else {
+      localStorage.removeItem("userStreakDate");
+    }
+  }, [streak, lastStreakDate, isHydrated]);
+
   const handleSurveyComplete = useCallback(async (profile: UserProfile) => {
     setUserProfile(profile);
     setSurveyCompleted(true);
@@ -149,13 +211,12 @@ const App = () => {
       setMainTopics(Array.isArray(data.topics) ? data.topics : []);
     } catch (error) {
       console.error("Error fetching topics:", error);
-      // Handle error, maybe set some default topics
     } finally {
       setLoadingTopics(false);
     }
   }, []);
 
-  const handleTopicsComplete = useCallback(async (topics: string[]) => {
+  const handleTopicsComplete = useCallback(async (topics: TopicBlueprint[]) => {
     setMainTopics(topics);
     setTopicsCompleted(true);
     setLoadingRoadmap(true);
@@ -171,27 +232,8 @@ const App = () => {
         }),
       });
       const data = await response.json();
-      const lessons = Array.isArray(data.lessons) ? data.lessons : [];
-      
-      const newRoadmap: LessonSummary[] = lessons.map((lesson: any) => ({
-        id: lesson.id,
-        title: lesson.title,
-        status: lesson.status,
-        lesson: {
-          id: lesson.id,
-          title: lesson.title,
-          track: lesson.topic,
-          chapter: lesson.topic,
-          estimated_minutes: 10,
-          xp_reward: lesson.xp_reward,
-          prerequisites: [] as string[],
-          blocks: [],
-          lessonType: lesson.plan?.lessonType,
-          plan: lesson.plan,
-        },
-      }));
-      
-      setRoadmap(newRoadmap);
+      const roadmapTopics = Array.isArray(data.lessons) ? data.lessons : [];
+      setRoadmap(roadmapTopics);
     } catch (error) {
       console.error("Error fetching roadmap:", error);
     } finally {
@@ -205,29 +247,58 @@ const App = () => {
 
   const completeLesson = (lessonId: string, xpReward: number) => {
     setRoadmap((prevRoadmap) => {
-      const currentLesson = prevRoadmap.find((lesson) => lesson.id === lessonId);
-      
-      // Only give XP if the lesson wasn't already completed
-      if (currentLesson?.status !== StageStatus.Completed) {
-        setXp((prev) => prev + xpReward);
-        setStreak((prev) => (prev === 0 ? 1 : prev));
+      let originalLesson: LessonSummary | undefined;
+      for (const topic of prevRoadmap) {
+        originalLesson = topic.lessons.find(l => l.id === lessonId);
+        if (originalLesson) break;
       }
-      
-      const newRoadmap = prevRoadmap.map((lesson) =>
-        lesson.id === lessonId
-          ? { ...lesson, status: StageStatus.Completed }
-          : lesson
-      );
 
-      const completedIndex = newRoadmap.findIndex(
-        (lesson) => lesson.id === lessonId
-      );
-      
-      // Only unlock the next lesson if it's currently locked
-      if (completedIndex !== -1 && completedIndex + 1 < newRoadmap.length) {
-        const nextLesson = newRoadmap[completedIndex + 1];
-        if (nextLesson.status === StageStatus.Locked) {
-          newRoadmap[completedIndex + 1].status = StageStatus.Unlocked;
+      if (originalLesson?.status !== StageStatus.Completed) {
+        const today = new Date();
+        const todayKey = formatDateKey(today);
+        setXp((prev) => prev + xpReward);
+        setStreak((prev) => {
+          const lastDate = lastStreakDate ? parseDateKey(lastStreakDate) : null;
+          if (!lastDate) {
+            return 1;
+          }
+          const gap = calculateDayGap(today, lastDate);
+          if (gap <= 0) {
+            return prev > 0 ? prev : 1;
+          }
+          if (gap === 1) {
+            const base = prev > 0 ? prev : 0;
+            return base + 1;
+          }
+          return 1;
+        });
+        setLastStreakDate(todayKey);
+      }
+
+      const newRoadmap = prevRoadmap.map(topic => {
+        const newLessons = topic.lessons.map(lesson => {
+          if (lesson.id === lessonId) {
+            return { ...lesson, status: StageStatus.Completed };
+          }
+          return lesson;
+        });
+
+        const lessonIndex = newLessons.findIndex(l => l.id === lessonId);
+        if (lessonIndex !== -1 && lessonIndex + 1 < newLessons.length) {
+          if (newLessons[lessonIndex + 1].status === StageStatus.Locked) {
+            newLessons[lessonIndex + 1].status = StageStatus.Unlocked;
+          }
+        }
+        return { ...topic, lessons: newLessons };
+      });
+
+      // Unlock first lesson of next topic
+      const topicIndex = newRoadmap.findIndex(t => t.lessons.some(l => l.id === lessonId));
+      if (topicIndex !== -1 && topicIndex + 1 < newRoadmap.length) {
+        const currentTopic = newRoadmap[topicIndex];
+        const allLessonsCompleted = currentTopic.lessons.every(l => l.status === StageStatus.Completed);
+        if (allLessonsCompleted) {
+          newRoadmap[topicIndex + 1].lessons[0].status = StageStatus.Unlocked;
         }
       }
 
@@ -237,11 +308,14 @@ const App = () => {
 
   const handleLessonHydrated = useCallback((lessonId: string, blocks: LessonBlock[]) => {
     setRoadmap((prevRoadmap) => 
-      prevRoadmap.map((lesson) =>
-        lesson.id === lessonId
-          ? { ...lesson, lesson: { ...lesson.lesson, blocks } }
-          : lesson
-      )
+      prevRoadmap.map(topic => ({
+        ...topic,
+        lessons: topic.lessons.map(lesson =>
+          lesson.id === lessonId
+            ? { ...lesson, lesson: { ...lesson.lesson, blocks } }
+            : lesson
+        )
+      }))
     );
   }, []);
 
@@ -253,6 +327,7 @@ const App = () => {
     setRoadmap([]);
     setLives(3);
     setStreak(0);
+    setLastStreakDate(null);
     setXp(0);
     setLoadingTopics(false);
     setLoadingRoadmap(false);
@@ -265,17 +340,17 @@ const App = () => {
         "roadmap",
         "lastProfileSync",
         "roadmapUpdatedAt",
+        "userStreak",
+        "userStreakDate",
+        "userEmail",
+        "userIsLoggedIn",
       ].forEach((key) => localStorage.removeItem(key));
     }
   }, []);
 
   const handleLogout = useCallback(() => {
-    setIsLoggedIn(false);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("userIsLoggedIn");
-      localStorage.removeItem("userEmail");
-    }
-  }, []);
+    handleResetRoadmap();
+  }, [handleResetRoadmap]);
 
   const renderLoadingState = (message: string) => (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-900 px-4">
@@ -291,15 +366,9 @@ const App = () => {
     </div>
   );
 
-  const handleLoginSuccess = () => {
-    setIsLoggedIn(true);
-  };
-
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans">
-      {!isLoggedIn ? (
-        <Login onLoginSuccess={handleLoginSuccess} />
-      ) : !surveyCompleted ? (
+      {!surveyCompleted ? (
         <Survey onComplete={handleSurveyComplete} />
       ) : loadingTopics ? (
         renderLoadingState("Generating your personalized roadmap...")

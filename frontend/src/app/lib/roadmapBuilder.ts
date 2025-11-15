@@ -1,9 +1,15 @@
-import { LessonPlan, StageStatus, UserProfile } from "./types";
+import {
+  LessonPlan,
+  StageStatus,
+  UserProfile,
+  TopicBlueprint,
+  RoadmapTopic,
+  LessonSummary,
+  Lesson,
+} from "./types";
 import {
   buildProfileHooks,
-  defaultTopicScaffolding,
   deriveDisciplineLabel,
-  introFriendlyTopic,
 } from "./profileUtils";
 
 const INTRO_PATTERN = /(intro|fundament|overview|basic)/i;
@@ -28,39 +34,91 @@ export const xpForLessonType = (lessonType: LessonPlan["lessonType"]) => {
   }
 };
 
-export interface RoadmapLessonPlan {
-  id: string;
-  title: string;
-  topic: string;
-  status: StageStatus;
-  plan: LessonPlan;
-  xp_reward: number;
-}
-
-export const generateTopicsFallback = (profile: UserProfile): string[] => {
-  const scaffolding = defaultTopicScaffolding(profile);
-  return scaffolding.length ? scaffolding : [introFriendlyTopic(profile)];
-};
-
 const baseSequence: LessonPlan["lessonType"][] = ["text", "code", "quiz", "code", "mentor"];
 
 const rotateSequence = (shift: number) =>
   baseSequence.map((_, index) => baseSequence[(index + shift) % baseSequence.length]);
 
-const lessonTitle = (
-  topic: string,
-  hooks: ReturnType<typeof buildProfileHooks>,
+type LessonTheme = {
+  label: string;
+  pitch: string;
+  assessment: string;
+  goalPrefix: string;
+};
+
+const LESSON_THEME_MAP: Record<"gamer" | "default", Record<LessonPlan["lessonType"], LessonTheme>> = {
+  gamer: {
+    text: {
+      label: "Lore Drop",
+      pitch: "The mentor narrates the mechanic like a story beat inside your favorite campaign.",
+      assessment: "concept clarity",
+      goalPrefix: "Anchor the fundamentals of",
+    },
+    code: {
+      label: "Hero Workshop",
+      pitch: "Pair-program a tiny spell or mechanic that could live in your go-to game.",
+      assessment: "hands-on crafting",
+      goalPrefix: "Turn the idea behind",
+    },
+    quiz: {
+      label: "Checkpoint Boss",
+      pitch: "Face a quick barrage of questions to prove the concept sticks.",
+      assessment: "concept verification",
+      goalPrefix: "Stress-test your reflexes on",
+    },
+    mentor: {
+      label: "Mentor Campfire",
+      pitch: "Slow the pace, trade insights with a guide, and plan the next raid.",
+      assessment: "reflection",
+      goalPrefix: "Reframe the strategy for",
+    },
+  },
+  default: {
+    text: {
+      label: "Concept Studio",
+      pitch: "Break the topic into crisp steps with relatable examples.",
+      assessment: "concept explanation",
+      goalPrefix: "Understand the principles of",
+    },
+    code: {
+      label: "Build Lab",
+      pitch: "Build a focused slice of code to see the mechanic run.",
+      assessment: "implementation",
+      goalPrefix: "Strengthen your practice around",
+    },
+    quiz: {
+      label: "Knowledge Pulse",
+      pitch: "Pulse-check your understanding with targeted prompts.",
+      assessment: "knowledge check",
+      goalPrefix: "Validate your intuition on",
+    },
+    mentor: {
+      label: "Mentor Huddle",
+      pitch: "Discuss blockers, momentum, and next experiments.",
+      assessment: "strategy alignment",
+      goalPrefix: "Realign the plan for",
+    },
+  },
+};
+
+const getLessonTheme = (
   lessonType: LessonPlan["lessonType"],
-  index: number,
+  gamerMode: boolean,
+): LessonTheme => {
+  const key = gamerMode ? "gamer" : "default";
+  return LESSON_THEME_MAP[key][lessonType];
+};
+
+const buildLessonTitle = (
+  topicBlueprint: TopicBlueprint,
+  topicIndex: number,
+  lessonIndex: number,
+  lessonType: LessonPlan["lessonType"],
+  hooks: ReturnType<typeof buildProfileHooks>,
 ) => {
-  const prefixMap: Record<LessonPlan["lessonType"], string[]> = {
-    text: ["Connect", "Unpack", "Spotlight"],
-    quiz: ["Scenario check", "Quick recap", "Concept pulse"],
-    code: ["Mini build", "Pseudo sprint", "Plan the steps"],
-    mentor: ["Mentor session", "Open question", "Reflection desk"],
-  };
-  const prefix = prefixMap[lessonType][index % prefixMap[lessonType].length];
-  return `${prefix}: ${topic}`;
+  const theme = getLessonTheme(lessonType, hooks.gamerMode);
+  const stage = `${topicIndex + 1}.${lessonIndex + 1}`;
+  return `Lesson ${stage}: ${theme.label} - ${topicBlueprint.title}`;
 };
 
 const templateIdForLesson = (
@@ -77,108 +135,75 @@ const templateIdForLesson = (
 };
 
 const createLessonPlan = (
-  topic: string,
+  topicBlueprint: TopicBlueprint,
   lessonType: LessonPlan["lessonType"],
   lessonIndex: number,
+  topicIndex: number,
   hooks: ReturnType<typeof buildProfileHooks>,
   isIntroTopic: boolean,
   profile: UserProfile,
 ): LessonPlan => {
-  const title = lessonTitle(topic, hooks, lessonType, lessonIndex);
+  const title = buildLessonTitle(topicBlueprint, topicIndex, lessonIndex, lessonType, hooks);
   const templateId = templateIdForLesson(lessonType, isIntroTopic, lessonIndex);
-  const descriptionBase = `Tie ${topic} to ${hooks.goal} for someone who is ${hooks.reason.toLowerCase()}.`;
-  const hobbiesString = hooks.hobbies.join(', ');
-
-  const lessonConfigs: Record<LessonPlan["lessonType"], Partial<LessonPlan>> = {
-    text: {
-      description: descriptionBase,
-      focus: hobbiesString,
-      quickActions: [
-        `Relate the idea to your work as a ${hooks.jobStatus}`,
-        `Note how it helps with ${hooks.shortGoal}`,
-        `Capture one blocker to ask the mentor`,
-      ],
-      snippetTag: "<button class=\"focus-pill\">Reflect</button>",
-      emphasis: hooks.captivates,
-    },
-    quiz: {
-      description: `${descriptionBase} Challenge their memory before building.`,
-      focus: hooks.shortGoal,
-      scenario: `While working on something related to ${hobbiesString}, a ${hooks.jobStatus.toLowerCase()} wants ${topic} to support ${hooks.reason.toLowerCase()}.`,
-      quickActions: [
-        `Identify the best option for their goal`,
-        `Explain why another option slows the plan`,
-      ],
-    },
-    code: {
-      description: `Help the learner sketch pseudocode for ${topic} without locking them to a language.`,
-      focus: deriveDisciplineLabel(profile),
-      scenario: `Outline steps they can adapt for a project related to ${hobbiesString}`,
-      quickActions: [
-        "Draft a three-step plan",
-        "Mark where to personalize messaging",
-      ],
-      snippetTag: "<pseudo>plan()</pseudo>",
-    },
-    mentor: {
-      description: `${descriptionBase} Use a mentor persona that balances warmth and accountability.`,
-      focus: hooks.reason,
-      persona: hooks.experience.toLowerCase().includes("beginner")
-        ? "encouraging guide"
-        : "pragmatic coach",
-      prompt: `Explain ${topic} using examples from projects related to ${hobbiesString}. After that, switch into examiner mode and ask open questions until the learner gives confident answers that align with ${hooks.goal}. Reference their job status (${hooks.jobStatus}) and what captivates them (${hooks.captivates}).`,
-      emphasis: hooks.captivates,
-    },
-  };
+  const hobby = hooks.primaryHobby || hooks.captivates;
+  const theme = getLessonTheme(lessonType, hooks.gamerMode);
+  const discipline = deriveDisciplineLabel(profile);
 
   return {
     templateId,
     lessonType,
-    topic,
+    topic: topicBlueprint.title,
     title,
-    ...lessonConfigs[lessonType],
-  } as LessonPlan;
+    description: `${theme.pitch} inside "${topicBlueprint.title}". We keep referencing ${hobby} so the concept sticks.`,
+    focus: discipline,
+    lessonGoal: `${theme.goalPrefix} ${topicBlueprint.title} so you move closer to ${hooks.shortGoal}.`,
+    reasonHook: hooks.reason,
+    hobbyInfusion: hobby,
+    assessmentFocus: theme.assessment,
+    topicBlueprintId: topicBlueprint.id,
+    tone: hooks.gamerMode ? "playful" : "focused",
+  };
 };
 
 export const generateRoadmapPlan = (
   profile: UserProfile,
-  topics: string[],
-): RoadmapLessonPlan[] => {
+  topics: TopicBlueprint[],
+): RoadmapTopic[] => {
   const hooks = buildProfileHooks(profile);
-  const validTopics = topics.length ? topics : generateTopicsFallback(profile);
+  const discipline = deriveDisciplineLabel(profile);
 
-  const roadmap: RoadmapLessonPlan[] = [];
-  let globalIndex = 0;
-
-  validTopics.forEach((topic, topicIndex) => {
-    const sanitizedTopic = topic.trim() || introFriendlyTopic(profile);
-    const isIntro = INTRO_PATTERN.test(sanitizedTopic);
-    const lessonCount = Math.max(5, isIntro ? 4 : 5);
+  return topics.map((topic, topicIndex) => {
+    const isIntro = INTRO_PATTERN.test(topic.title);
+    const lessonCount = Math.max(4, isIntro ? 4 : 5);
     const sequence = isIntro ? baseSequence : rotateSequence(topicIndex % baseSequence.length);
 
-    for (let lessonIndex = 0; lessonIndex < lessonCount; lessonIndex += 1) {
-      const sequenceType = sequence[lessonIndex % sequence.length];
-      const lessonType =
-        isIntro && lessonIndex === 0 ? "text" : sequenceType;
-      const plan = createLessonPlan(
-        sanitizedTopic,
-        lessonType,
-        lessonIndex,
-        hooks,
-        isIntro,
-        profile,
-      );
-      roadmap.push({
-        id: `${slugify(sanitizedTopic)}-${lessonType}-${lessonIndex}`,
+    const lessons: LessonSummary[] = [];
+    for (let i = 0; i < lessonCount; i++) {
+      const lessonType = sequence[i];
+      const plan = createLessonPlan(topic, lessonType, i, topicIndex, hooks, isIntro, profile);
+      const lesson: Lesson = {
+        id: `${slugify(topic.title)}-${lessonType}-${i}`,
+        track: topic.title,
+        chapter: topic.title,
         title: plan.title,
-        topic: sanitizedTopic,
-        status: globalIndex === 0 ? StageStatus.Unlocked : StageStatus.Locked,
-        plan,
+        estimated_minutes: 10,
         xp_reward: xpForLessonType(lessonType),
+        prerequisites: [],
+        blocks: [],
+        plan,
+      };
+      lessons.push({
+        id: lesson.id,
+        title: lesson.title,
+        status: topicIndex === 0 && i === 0 ? StageStatus.Unlocked : StageStatus.Locked,
+        lesson,
       });
-      globalIndex += 1;
     }
-  });
 
-  return roadmap;
+    return {
+      topicBlueprint: topic,
+      topicSummary: `${topic.title} - ${topic.tagline}\nWhy it matters: ${topic.whyItMatters}\nKey skills: ${topic.skillsToUnlock.join(", ")}\nHobby hook: ${topic.hobbyHook}\nWe connect everything back to your goal (${hooks.shortGoal}) and the ${discipline} track.`,
+      lessons,
+    };
+  });
 };

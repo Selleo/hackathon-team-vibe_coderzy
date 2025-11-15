@@ -1,89 +1,57 @@
 import { NextResponse } from "next/server";
-import { UserProfile } from "../../lib/types";
-import { generateTopicsFallback } from "../../lib/roadmapBuilder";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-const responseSchema = {
-  type: "object",
-  properties: {
-    topics: {
-      type: "array",
-      items: {
-        type: "string",
-      },
-    },
-  },
-  required: ["topics"],
-};
+import { UserProfile, TopicBlueprint } from "../../lib/types";
+import { generateTopicBlueprintsFallback } from "../../lib/profileUtils";
+import {
+  callGrok,
+  extractResponseText,
+  hasGrokConfig,
+  GrokConfigurationError,
+  GrokRequestError,
+} from "../../lib/grok";
 
 export async function POST(req: Request) {
   const profile = (await req.json()) as UserProfile;
-  const fallbackTopics = generateTopicsFallback(profile);
+  const fallbackTopics = generateTopicBlueprintsFallback(profile);
 
-  if (!GEMINI_API_KEY) {
+  if (!hasGrokConfig()) {
     return NextResponse.json({ topics: fallbackTopics, source: "fallback" });
   }
 
-  const payload = {
-    generationConfig: {
-      temperature: 0.7,
-      response_mime_type: "application/json",
-      response_schema: responseSchema,
-    },
-    contents: [
-      {
-        parts: [
-          {
-            text: `You are a curriculum generator. Produce 5-7 topics ordered from foundational to advanced. Each topic must be self-contained, specific, and reference the learner's context (reason, job, hobby, goal).
-Learner profile:
-- Reason: ${profile.reason}
-- Job status: ${profile.jobStatus}
-- Coding experience: ${profile.codingExperience}
-- Captivated by: ${profile.captivates}
-- Learning goal: ${profile.learningGoal}
-- Hobbies: ${profile.hobbies.join(", ") || "None listed"}
-
-Return only topic titles (no descriptions). Ensure the list covers fundamentals, practice, and review.`,
-          },
-        ],
-      },
-    ],
-  };
-
   try {
-    const response = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    const response = await callGrok(
+      [
+        {
+          role: "system",
+          content:
+            "You are a curriculum generator for ViaMent. Always respond with JSON in the shape {\"topics\": TopicBlueprint[]}.",
+        },
+        {
+          role: "user",
+          content: `Generate 5-7 topic blueprints personalized for this user. Fill every field with profile-grounded content.\n\nUser Profile:\n- Reason for learning: ${profile.reason}\n- Job status: ${profile.jobStatus}\n- Coding experience: ${profile.codingExperience}\n- What captivates them: ${profile.captivates}\n- Learning goal: ${profile.learningGoal}\n- Hobbies: ${profile.hobbies.join(", ") || "None listed"}\n\nFields required for each topic:\n- id\n- title\n- tagline\n- whyItMatters (must reference the user motivation/job)\n- skillsToUnlock (2-3 items)\n- hobbyHook (explicit tie to a hobby or interest)\n- targetExperience\n- recommendedArtifacts (2-3 items)`,
+        },
+      ],
+      { temperature: 0.7, maxOutputTokens: 1200 },
+    );
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Gemini topics error", data);
+    const contentRaw = extractResponseText(response);
+    let parsed: { topics: TopicBlueprint[] } | null = null;
+    try {
+      parsed = contentRaw ? JSON.parse(contentRaw) : null;
+    } catch (error) {
+      console.error("JSON parsing error in /api/topics", error, contentRaw);
       return NextResponse.json({ topics: fallbackTopics, source: "fallback" });
     }
 
-    const contentRaw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    let parsed: unknown = null;
-    try {
-      parsed = contentRaw ? JSON.parse(contentRaw) : null;
-    } catch {
-      parsed = null;
-    }
-    const topics =
-      parsed && typeof parsed === "object" && "topics" in parsed
-        ? (parsed as { topics?: string[] }).topics ?? []
-        : [];
+    const topics = parsed?.topics ?? [];
     if (!Array.isArray(topics) || topics.length < 5) {
       return NextResponse.json({ topics: fallbackTopics, source: "fallback" });
     }
-    return NextResponse.json({ topics, source: "gemini" });
+    return NextResponse.json({ topics, source: "openai" });
   } catch (error) {
+    if (error instanceof GrokConfigurationError || error instanceof GrokRequestError) {
+      return NextResponse.json({ topics: fallbackTopics, source: "fallback" });
+    }
+
     console.error("Topics route error", error);
     return NextResponse.json({ topics: fallbackTopics, source: "fallback" });
   }

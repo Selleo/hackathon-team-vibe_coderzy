@@ -1,32 +1,19 @@
 import { NextResponse } from "next/server";
 
+import {
+  callGrok,
+  extractResponseText,
+  GrokConfigurationError,
+  GrokRequestError,
+} from "../../../lib/grok";
+
 interface ExaminerRequestBody {
   lessonContext?: string;
   proficiency?: string;
   userCode?: string;
 }
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-const responseSchema = {
-  type: "object",
-  properties: {
-    passed: { type: "boolean" },
-    feedback: { type: "string" },
-    deduct_heart: { type: "boolean" },
-  },
-  required: ["passed", "feedback", "deduct_heart"],
-};
-
 export async function POST(req: Request) {
-  if (!GEMINI_API_KEY) {
-    return NextResponse.json(
-      { error: "GEMINI_API_KEY is not configured on the server." },
-      { status: 500 },
-    );
-  }
-
   const body = (await req.json()) as ExaminerRequestBody;
   const { lessonContext, proficiency, userCode } = body;
 
@@ -37,45 +24,44 @@ export async function POST(req: Request) {
     );
   }
 
-  const payload = {
-    contents: [
-      {
-        parts: [
-          {
-            text: `You are "Mentor" in Examiner mode. Evaluate code fairly and rigorously. Check if it meets the acceptance criteria and solves the problem correctly. Accept different valid approaches, but the code must actually work and meet the requirements. Reject code with logic errors, incorrect output, or missing key functionality. Be encouraging but honest in feedback.
-Proficiency: ${proficiency}\n\nLesson context and acceptance criteria:\n${lessonContext}\n\nUser's code:\n${userCode}\n\nEvaluate: Does it meet the acceptance criteria? Does it solve the problem? Is the logic correct? Be fair but rigorous - don't accept code that doesn't work or misses requirements.`,
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.2,
-      response_mime_type: "application/json",
-      response_schema: responseSchema,
-    },
-  };
-
   try {
-    const response = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    const systemPrompt =
+      'You are "Mentor" in Examiner mode. Evaluate code fairly and rigorously. Check if it meets the acceptance criteria and solves the problem correctly. Accept different valid approaches, but the code must actually work. Reject code with logic errors or missing functionality. Respond strictly with JSON using the shape {"passed": boolean, "feedback": string, "deduct_heart": boolean}.';
 
-    const data = await response.json();
+    const userPrompt = `Proficiency: ${proficiency}\n\nLesson context and acceptance criteria:\n${lessonContext}\n\nUser's code:\n${userCode}\n\nEvaluate the submission and set deduct_heart to true only when the learner should lose a heart.`;
 
-    if (!response.ok) {
-      console.error("Gemini examiner error", data);
-      return NextResponse.json({ error: "Failed to contact Gemini." }, { status: 502 });
+    const response = await callGrok(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      { temperature: 0.2, maxOutputTokens: 600 },
+    );
+
+    const content = extractResponseText(response);
+    try {
+      const parsed = JSON.parse(content || "{}");
+      return NextResponse.json(parsed);
+    } catch (jsonError) {
+      console.error("Examiner JSON parse error", jsonError, content);
+      return NextResponse.json(
+        { error: "Examiner model returned invalid JSON." },
+        { status: 502 },
+      );
+    }
+  } catch (error) {
+    if (error instanceof GrokConfigurationError) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    const parsed = JSON.parse(content);
-    return NextResponse.json(parsed);
-  } catch (error) {
+    if (error instanceof GrokRequestError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    }
+
     console.error("Examiner route error", error);
-    return NextResponse.json({ error: "Unexpected error calling Gemini." }, { status: 500 });
+    return NextResponse.json({ error: "Unexpected error calling Grok." }, { status: 500 });
   }
 }
