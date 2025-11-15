@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Dashboard from "./Dashboard";
 import Survey from "./Survey";
 import MainTopics from "./MainTopics";
-import { LessonBlock, LessonSummary, StageStatus, UserProfile, TopicBlueprint, RoadmapTopic } from "../lib/types";
+import { LessonBlock, StageStatus, UserProfile, TopicBlueprint, RoadmapTopic } from "../lib/types";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -60,6 +60,7 @@ const App = () => {
   const [lastStreakDate, setLastStreakDate] = useState<string | null>(null);
   const [xp, setXp] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
+  const completedLessonIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -130,6 +131,18 @@ const App = () => {
       setIsHydrated(true);
     }
   }, []);
+
+  useEffect(() => {
+    const completed = new Set<string>();
+    roadmap.forEach((topic) => {
+      topic.lessons.forEach((lesson) => {
+        if (lesson.status === StageStatus.Completed) {
+          completed.add(lesson.id);
+        }
+      });
+    });
+    completedLessonIdsRef.current = completed;
+  }, [roadmap]);
 
   useEffect(() => {
     if (!isHydrated || typeof window === "undefined") {
@@ -246,64 +259,77 @@ const App = () => {
   };
 
   const completeLesson = (lessonId: string, xpReward: number) => {
+    if (completedLessonIdsRef.current.has(lessonId)) {
+      return;
+    }
+
+    let shouldAwardXp = false;
     setRoadmap((prevRoadmap) => {
-      let originalLesson: LessonSummary | undefined;
-      for (const topic of prevRoadmap) {
-        originalLesson = topic.lessons.find(l => l.id === lessonId);
-        if (originalLesson) break;
-      }
-
-      if (originalLesson?.status !== StageStatus.Completed) {
-        const today = new Date();
-        const todayKey = formatDateKey(today);
-        setXp((prev) => prev + xpReward);
-        setStreak((prev) => {
-          const lastDate = lastStreakDate ? parseDateKey(lastStreakDate) : null;
-          if (!lastDate) {
-            return 1;
-          }
-          const gap = calculateDayGap(today, lastDate);
-          if (gap <= 0) {
-            return prev > 0 ? prev : 1;
-          }
-          if (gap === 1) {
-            const base = prev > 0 ? prev : 0;
-            return base + 1;
-          }
-          return 1;
-        });
-        setLastStreakDate(todayKey);
-      }
-
-      const newRoadmap = prevRoadmap.map(topic => {
-        const newLessons = topic.lessons.map(lesson => {
+      const newRoadmap = prevRoadmap.map((topic) => {
+        const newLessons = topic.lessons.map((lesson) => {
           if (lesson.id === lessonId) {
+            if (
+              lesson.status !== StageStatus.Completed &&
+              !completedLessonIdsRef.current.has(lessonId)
+            ) {
+              shouldAwardXp = true;
+              completedLessonIdsRef.current.add(lessonId);
+            }
             return { ...lesson, status: StageStatus.Completed };
           }
           return lesson;
         });
 
-        const lessonIndex = newLessons.findIndex(l => l.id === lessonId);
+        const lessonIndex = newLessons.findIndex((l) => l.id === lessonId);
         if (lessonIndex !== -1 && lessonIndex + 1 < newLessons.length) {
           if (newLessons[lessonIndex + 1].status === StageStatus.Locked) {
             newLessons[lessonIndex + 1].status = StageStatus.Unlocked;
           }
         }
+
         return { ...topic, lessons: newLessons };
       });
 
-      // Unlock first lesson of next topic
-      const topicIndex = newRoadmap.findIndex(t => t.lessons.some(l => l.id === lessonId));
+      const topicIndex = newRoadmap.findIndex((t) =>
+        t.lessons.some((l) => l.id === lessonId)
+      );
       if (topicIndex !== -1 && topicIndex + 1 < newRoadmap.length) {
         const currentTopic = newRoadmap[topicIndex];
-        const allLessonsCompleted = currentTopic.lessons.every(l => l.status === StageStatus.Completed);
+        const allLessonsCompleted = currentTopic.lessons.every(
+          (l) => l.status === StageStatus.Completed
+        );
         if (allLessonsCompleted) {
-          newRoadmap[topicIndex + 1].lessons[0].status = StageStatus.Unlocked;
+          const nextTopic = newRoadmap[topicIndex + 1];
+          if (nextTopic.lessons[0].status === StageStatus.Locked) {
+            nextTopic.lessons[0].status = StageStatus.Unlocked;
+          }
         }
       }
 
       return newRoadmap;
     });
+
+    if (shouldAwardXp) {
+      const today = new Date();
+      const todayKey = formatDateKey(today);
+      setXp((prev) => prev + xpReward);
+      setStreak((prev) => {
+        const lastDate = lastStreakDate ? parseDateKey(lastStreakDate) : null;
+        if (!lastDate) {
+          return 1;
+        }
+        const gap = calculateDayGap(today, lastDate);
+        if (gap <= 0) {
+          return prev > 0 ? prev : 1;
+        }
+        if (gap === 1) {
+          const base = prev > 0 ? prev : 0;
+          return base + 1;
+        }
+        return 1;
+      });
+      setLastStreakDate(todayKey);
+    }
   };
 
   const handleLessonHydrated = useCallback((lessonId: string, blocks: LessonBlock[]) => {
@@ -331,6 +357,7 @@ const App = () => {
     setXp(0);
     setLoadingTopics(false);
     setLoadingRoadmap(false);
+    completedLessonIdsRef.current.clear();
     if (typeof window !== "undefined") {
       [
         "surveyCompleted",
