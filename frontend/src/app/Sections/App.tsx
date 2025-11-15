@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect } from "react";
 import Dashboard from "./Dashboard";
 import Survey from "./Survey";
 import MainTopics from "./MainTopics";
-import Login from "./Login";
 import { LessonBlock, LessonSummary, StageStatus, UserProfile, TopicBlueprint, RoadmapTopic } from "../lib/types";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -48,7 +47,6 @@ const parseDateKey = (value: string) => {
 };
 
 const App = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [topicsCompleted, setTopicsCompleted] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -69,11 +67,6 @@ const App = () => {
     }
 
     try {
-      const storedIsLoggedIn = localStorage.getItem("userIsLoggedIn");
-      if (storedIsLoggedIn === "true") {
-        setIsLoggedIn(true);
-      }
-
       const storedSurveyCompleted = localStorage.getItem("surveyCompleted");
       if (storedSurveyCompleted === "true") {
         setSurveyCompleted(true);
@@ -349,21 +342,15 @@ const App = () => {
         "roadmapUpdatedAt",
         "userStreak",
         "userStreakDate",
+        "userEmail",
+        "userIsLoggedIn",
       ].forEach((key) => localStorage.removeItem(key));
     }
   }, []);
 
   const handleLogout = useCallback(() => {
-    setIsLoggedIn(false);
-    setStreak(0);
-    setLastStreakDate(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("userIsLoggedIn");
-      localStorage.removeItem("userEmail");
-      localStorage.removeItem("userStreak");
-      localStorage.removeItem("userStreakDate");
-    }
-  }, []);
+    handleResetRoadmap();
+  }, [handleResetRoadmap]);
 
   const renderLoadingState = (message: string) => (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-900 px-4">
@@ -379,15 +366,9 @@ const App = () => {
     </div>
   );
 
-  const handleLoginSuccess = () => {
-    setIsLoggedIn(true);
-  };
-
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans">
-      {!isLoggedIn ? (
-        <Login onLoginSuccess={handleLoginSuccess} />
-      ) : !surveyCompleted ? (
+      {!surveyCompleted ? (
         <Survey onComplete={handleSurveyComplete} />
       ) : loadingTopics ? (
         renderLoadingState("Generating your personalized roadmap...")

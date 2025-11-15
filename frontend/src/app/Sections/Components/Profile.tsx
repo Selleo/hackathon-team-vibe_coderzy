@@ -44,6 +44,7 @@ const Profile: React.FC<ProfileProps> = ({
   onResetRoadmap,
   onLogout,
 }) => {
+  const displayName = "Example User";
   const safeRoadmap = useMemo(
     () => (Array.isArray(roadmap) ? roadmap : []),
     [roadmap]
@@ -161,16 +162,15 @@ const Profile: React.FC<ProfileProps> = ({
   const handleLogoutClick = () => {
     if (typeof window !== "undefined") {
       const confirmed = window.confirm(
-        "Are you sure you want to log out? Your data will be saved and available when you log back in."
+        "Logging out will reset your roadmap and progress. Continue?"
       );
       if (!confirmed) {
         return;
       }
     }
+    onResetRoadmap();
     if (typeof onLogout === "function") {
       onLogout();
-    } else {
-      console.warn("Logout handler is missing.");
     }
   };
 
@@ -185,8 +185,9 @@ const Profile: React.FC<ProfileProps> = ({
               Learning journey
             </p>
             <h1 className="text-3xl font-bold text-white sm:text-4xl">
-              Personal Profile
+              {displayName}
             </h1>
+            <p className="text-sm text-cyan-200/80">Personal Profile</p>
             <p className="max-w-2xl text-base text-gray-300">
               You decided to learn coding because of{" "}
               <span className="font-semibold text-cyan-200">
