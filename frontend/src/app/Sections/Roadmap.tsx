@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { LessonSummary, StageStatus } from "../lib/types";
+import { useEffect, useMemo, useState } from "react";
+import { LessonSummary, StageStatus, RoadmapTopic, TopicBlueprint, UserProfile } from "../lib/types";
 
 const LockIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
@@ -32,13 +32,22 @@ const PlayIcon = ({ className }: { className?: string }) => (
 );
 
 interface RoadmapProps {
-  stages: LessonSummary[];
-  onStageSelect: (stage: LessonSummary) => void;
+  roadmap: RoadmapTopic[];
+  userProfile: UserProfile;
+  onStageSelect: (stage: LessonSummary, topicBlueprint: TopicBlueprint) => void;
 }
 
-const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
-  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+const Roadmap: React.FC<RoadmapProps> = (props) => {
+  const { roadmap, userProfile, onStageSelect } = props;
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  const selectedTopic = useMemo(() => {
+    if (!selectedTopicId) {
+      return null;
+    }
+    return roadmap.find((topic) => topic.topicBlueprint.id === selectedTopicId) ?? null;
+  }, [roadmap, selectedTopicId]);
 
   useEffect(() => {
     if (!infoMessage) {
@@ -49,31 +58,20 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
     return () => window.clearTimeout(timeout);
   }, [infoMessage]);
 
-  const topics = stages.reduce((acc, stage) => {
-    const topic = stage.lesson.track;
-    if (!acc[topic]) {
-      acc[topic] = [];
-    }
-    acc[topic].push(stage);
-    return acc;
-  }, {} as Record<string, LessonSummary[]>);
-
-  const topicEntries = Object.entries(topics);
-
   const isTopicLocked = (topicIndex: number) => {
     if (topicIndex === 0) {
       return false;
     }
-    const prevTopic = topicEntries[topicIndex - 1][1];
-    return prevTopic.some((stage) => stage.status !== StageStatus.Completed);
+    const prevTopic = roadmap[topicIndex - 1];
+    return prevTopic.lessons.some((stage) => stage.status !== StageStatus.Completed);
   };
 
   if (selectedTopic) {
-    const lessons = topics[selectedTopic];
+    const lessons = selectedTopic.lessons;
     
     return (
       <div className="container mx-auto max-w-5xl animate-fade-in px-4 py-8">
-        <button onClick={() => setSelectedTopic(null)} className="mb-6 px-4 py-2 bg-gray-700/80 rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2">
+        <button onClick={() => setSelectedTopicId(null)} className="mb-6 px-4 py-2 bg-gray-700/80 rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -81,7 +79,8 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
         </button>
         
         <div className="mb-8">
-          <h1 className="text-4xl font-extrabold text-cyan-300 tracking-tight mb-2">{selectedTopic}</h1>
+          <h1 className="text-4xl font-extrabold text-cyan-300 tracking-tight mb-2">{selectedTopic.topicBlueprint.title}</h1>
+          <p className="text-gray-400">{selectedTopic.topicSummary}</p>
         </div>
 
         <div className="relative">
@@ -93,14 +92,12 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
               const isLocked = stage.status === StageStatus.Locked;
               const isCompleted = stage.status === StageStatus.Completed;
               
-              // Find the first uncompleted lesson
               const firstUncompletedIndex = lessons.findIndex(l => l.status !== StageStatus.Completed);
               const isNextAvailable = index === firstUncompletedIndex;
               const isClickable = isCompleted || isNextAvailable;
               
               return (
                 <div key={stage.id} className="relative flex items-start gap-6">
-                  {/* Timeline node */}
                   <div className={`relative z-10 flex items-center justify-center w-16 h-16 rounded-full border-4 shadow-lg transition-all duration-200 ${
                     isCompleted 
                       ? "bg-emerald-500 border-emerald-300 shadow-emerald-500/50" 
@@ -117,14 +114,13 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
                     )}
                   </div>
 
-                  {/* Lesson card */}
                   <button
                     onClick={() => {
                       if (!isClickable) {
                         setInfoMessage("Complete the previous lessons first to unlock this one.");
                         return;
                       }
-                      onStageSelect(stage);
+                      onStageSelect(stage, selectedTopic.topicBlueprint);
                     }}
                     className={`flex-1 text-left rounded-xl border transition-all duration-200 ${
                       isCompleted
@@ -132,7 +128,7 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
                         : isNextAvailable
                         ? "bg-cyan-900/20 border-cyan-500/40 hover:border-cyan-500/60 hover:bg-cyan-900/30"
                         : "bg-gray-800/50 border-gray-700 cursor-not-allowed"
-                    } p-5 shadow-lg`}
+                    } p-5 shadow-lg group`}
                     disabled={!isClickable}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -152,8 +148,8 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
                         }`}>
                           {stage.title}
                         </h3>
-                        <p className={`text-sm ${isLocked ? "text-gray-600" : "text-gray-400"}`}>
-                          {stage.lesson.chapter}
+                        <p className={`text-sm ${isLocked ? "text-gray-600" : "text-gray-400"} transition-all duration-300 opacity-0 group-hover:opacity-100 max-h-0 group-hover:max-h-20`}>
+                          {stage.lesson.plan.description}
                         </p>
                       </div>
                       
@@ -193,13 +189,13 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
     <div className="container mx-auto max-w-4xl animate-fade-in px-4 py-8">
       <h1 className="text-5xl font-extrabold mb-10 text-cyan-300 tracking-tight">Your Learning Roadmap</h1>
       <div className="space-y-4">
-        {topicEntries.map(([topic, lessons], topicIndex) => {
-          const completedCount = lessons.filter(l => l.status === StageStatus.Completed).length;
-          const totalLessons = lessons.length;
+        {roadmap.map((topic, topicIndex) => {
+          const completedCount = topic.lessons.filter(l => l.status === StageStatus.Completed).length;
+          const totalLessons = topic.lessons.length;
           const locked = isTopicLocked(topicIndex);
           
           return (
-            <div key={topic} className={`bg-gray-800/60 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border transition-all duration-200 ${
+            <div key={topic.topicBlueprint.id} className={`bg-gray-800/60 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border transition-all duration-200 ${
               locked ? "border-gray-700" : "border-gray-700/50 hover:border-cyan-500/30"
             }`}>
               <button
@@ -211,15 +207,21 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
                     setInfoMessage("Complete earlier lessons to unlock this section.");
                     return;
                   }
-                  setSelectedTopic(topic);
+                  setSelectedTopicId(topic.topicBlueprint.id);
                 }}
                 aria-disabled={locked}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1">
                     <h2 className={`text-2xl font-bold mb-2 ${locked ? "text-gray-500" : "text-white"}`}>
-                      {topic}
+                      {topic.topicBlueprint.title}
                     </h2>
+                    <p className="text-sm text-gray-400 mb-2">{topic.topicBlueprint.tagline}</p>
+                    <div className="text-xs text-gray-500 space-x-2 mb-3">
+                      <span>Based on your goal: <span className="font-semibold text-cyan-400">{userProfile.learningGoal}</span></span>
+                      <span>&bull;</span>
+                      <span>Inspired by: <span className="font-semibold text-cyan-400">{userProfile.hobbies.join(', ')}</span></span>
+                    </div>
                     <div className="flex items-center gap-4 text-sm">
                       <div className={`flex items-center gap-1.5 ${locked ? "text-gray-600" : "text-gray-400"}`}>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,7 +231,6 @@ const Roadmap: React.FC<RoadmapProps> = ({ stages, onStageSelect }) => {
                       </div>
                     </div>
                     
-                    {/* Progress bar */}
                     {!locked && (
                       <div className="mt-3 w-full bg-gray-700 rounded-full h-2 overflow-hidden">
                         <div 

@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 
+import {
+  callGrok,
+  extractResponseText,
+  GrokConfigurationError,
+  GrokRequestError,
+} from "../../../lib/grok";
+
 type ExplainRequest = {
   lessonContext?: string;
   proficiency?: string;
@@ -7,41 +14,10 @@ type ExplainRequest = {
   topic?: string;
   prompt?: string;
   learnerQuestion?: string;
-  history?: { role: "mentor" | "user"; content: string }[];
-};
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-
-type ContentPart = { text?: string };
-
-const parseContent = (content: unknown): string => {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => {
-        if (typeof part === "string") return part;
-        if (part && typeof part === "object" && "text" in part) {
-          const candidate = part as ContentPart;
-          if (typeof candidate.text === "string") {
-            return candidate.text;
-          }
-        }
-        return "";
-      })
-      .join("");
-  }
-  return "";
+  history?: { role: "model" | "user"; content: string }[];
 };
 
 export async function POST(req: Request) {
-  if (!OPENAI_API_KEY) {
-    return NextResponse.json(
-      { error: "OPENAI_API_KEY is not configured on the server." },
-      { status: 500 },
-    );
-  }
-
   const body = (await req.json()) as ExplainRequest;
   const { lessonContext, proficiency, persona, topic, prompt, learnerQuestion, history } = body;
 
@@ -52,50 +28,38 @@ export async function POST(req: Request) {
     );
   }
 
-  const historyMessages =
-    history?.map((message) => ({
-      role: message.role === "mentor" ? "assistant" : "user",
-      content: message.content,
-    })) ?? [];
-
-  const payload = {
-    model: "gpt-4o-mini",
-    temperature: 0.4,
-    messages: [
-      {
-        role: "system",
-        content:
-          `You are an AI mentor in ${persona} mode. Explain topics clearly, encourage reflection, and keep responses under five sentences.`,
-      },
-      ...historyMessages,
-      {
-        role: "user",
-        content: `Lesson context: ${lessonContext}\nTopic: ${topic}\nPrompt: ${prompt}\nLearner question: ${learnerQuestion}\nProficiency: ${proficiency}`,
-      },
-    ],
-  };
-
   try {
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+    const messages = [
+      {
+        role: "system" as const,
+        content: `You are an AI mentor in ${persona} mode. Explain topics clearly, encourage reflection, and keep responses under five sentences. Use a confident but empathetic tone.`,
       },
-      body: JSON.stringify(payload),
-    });
+      ...((history ?? []).map((message) => ({
+        role: message.role === "model" ? "assistant" : "user",
+        content: message.content,
+      })) as { role: "assistant" | "user"; content: string }[]),
+      {
+        role: "user" as const,
+        content: `Lesson context: ${lessonContext}\nTopic: ${topic}\nPrompt: ${prompt}\nLearner question: ${learnerQuestion}\nProficiency: ${proficiency}\nProvide the next mentor response.`,
+      },
+    ];
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("OpenAI explain error", data);
-      return NextResponse.json({ error: "Failed to contact OpenAI." }, { status: 502 });
-    }
-
-    const feedback = parseContent(data.choices?.[0]?.message?.content).trim();
+    const response = await callGrok(messages, { temperature: 0.4, maxOutputTokens: 500 });
+    const feedback = extractResponseText(response).trim();
     return NextResponse.json({ feedback });
   } catch (error) {
+    if (error instanceof GrokConfigurationError) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (error instanceof GrokRequestError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    }
+
     console.error("Explain route error", error);
-    return NextResponse.json({ error: "Unexpected error calling OpenAI." }, { status: 500 });
+    return NextResponse.json({ error: "Unexpected error calling Grok." }, { status: 500 });
   }
 }

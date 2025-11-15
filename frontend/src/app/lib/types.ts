@@ -13,6 +13,23 @@ export enum StageStatus {
   Completed = "completed",
 }
 
+export interface TopicBlueprint {
+  id: string;
+  title: string;
+  tagline: string;
+  whyItMatters: string;
+  skillsToUnlock: string[];
+  hobbyHook: string;
+  targetExperience: string;
+  recommendedArtifacts: string[];
+}
+
+export interface RoadmapTopic {
+  topicBlueprint: TopicBlueprint;
+  topicSummary: string;
+  lessons: LessonSummary[];
+}
+
 export type BlockType = "text" | "quiz" | "code" | "mentor" | "ai-mentor";
 
 export type LessonTemplateId =
@@ -36,6 +53,12 @@ export interface LessonPlan {
   persona?: string;
   prompt?: string;
   emphasis?: string;
+  // New fields for personalization
+  lessonGoal: string;
+  reasonHook: string;
+  hobbyInfusion: string;
+  assessmentFocus: string;
+  topicBlueprintId: string;
 }
 
 export interface BaseBlock {
@@ -48,6 +71,7 @@ export interface TextBlock extends BaseBlock {
   markdown: string;
   quickActions?: string[];
   snippet?: string;
+  microSteps?: string[];
 }
 
 export interface QuizOption {
@@ -65,17 +89,19 @@ export interface QuizBlock extends BaseBlock {
   kind: "single" | "multi" | "code-output" | "ordering";
   options: QuizOption[];
   penalty_hearts: number;
+  reflectionPrompt?: string;
 }
 
 export interface CodeBlock extends BaseBlock {
   type: "code";
   title: string;
   instructions: string;
-  language?: "javascript" | "python" | "typescript" | "java" | "csharp" | "go" | "rust";
+  language: string;
   starter: string;
   solution: string;
   acceptanceCriteria: string[];
   penalty_hearts: number;
+  reflectionPrompt?: string;
 }
 
 export interface MentorBlock extends BaseBlock {

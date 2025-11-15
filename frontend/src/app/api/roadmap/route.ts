@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { UserProfile } from "../../lib/types";
-import { generateRoadmapPlan, generateTopicsFallback } from "../../lib/roadmapBuilder";
+import { UserProfile, TopicBlueprint } from "../../lib/types";
+import { generateRoadmapPlan } from "../../lib/roadmapBuilder";
+import { generateTopicBlueprintsFallback } from "../../lib/profileUtils";
 
 type RoadmapRequest = {
-  topics?: string[];
+  topics?: TopicBlueprint[];
   profile: UserProfile;
 };
 
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   }
 
   const topics = Array.isArray(body?.topics) ? body.topics.filter(Boolean) : [];
-  const fallbackTopics = topics.length ? topics : generateTopicsFallback(profile);
+  const fallbackTopics = topics.length ? topics : generateTopicBlueprintsFallback(profile);
 
   const lessons = generateRoadmapPlan(profile, fallbackTopics);
   return NextResponse.json({ lessons });

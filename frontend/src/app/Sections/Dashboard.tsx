@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { LessonBlock, LessonSummary, UserProfile } from "../lib/types";
+import { useState, useEffect, useMemo } from "react";
+import { LessonBlock, RoadmapTopic, TopicBlueprint, UserProfile } from "../lib/types";
 import LessonModal from "./LessonModal";
 import Roadmap from "./Roadmap";
 import Leaderboard from "./Components/Leaderboard";
@@ -25,9 +25,9 @@ interface DashboardProps {
   lives: number;
   streak: number;
   xp: number;
-  roadmap: LessonSummary[];
+  roadmap: RoadmapTopic[];
   userProfile: UserProfile;
-  mainTopics: string[];
+  mainTopics: TopicBlueprint[];
   loseLife: () => void;
   completeLesson: (lessonId: string, xpReward: number) => void;
   onLessonHydrated: (lessonId: string, blocks: LessonBlock[]) => void;
@@ -49,9 +49,26 @@ const Dashboard: React.FC<DashboardProps> = ({
   onLogout,
 }) => {
   const [activeTab, setActiveTab] = useState("Roadmap");
-  const [selectedLesson, setSelectedLesson] = useState<LessonSummary | null>(
-    null
-  );
+  const [selectedLessonRef, setSelectedLessonRef] = useState<{ topicId: string; lessonId: string } | null>(null);
+  const selectedLesson = useMemo(() => {
+    if (!selectedLessonRef) {
+      return null;
+    }
+    const parentTopic = roadmap.find(
+      (topic) => topic.topicBlueprint.id === selectedLessonRef.topicId,
+    );
+    if (!parentTopic) {
+      return null;
+    }
+    const lesson = parentTopic.lessons.find((entry) => entry.id === selectedLessonRef.lessonId);
+    if (!lesson) {
+      return null;
+    }
+    return {
+      lesson,
+      topicBlueprint: parentTopic.topicBlueprint,
+    };
+  }, [roadmap, selectedLessonRef]);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   // close sidebar on larger screens and keep it open on md+ by default
@@ -216,7 +233,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         className={`flex-1 p-4 pt-20 sm:p-6 md:p-8 md:pt-8 bg-gray-900 ml-0 min-h-screen`}
       >
         {activeTab === "Roadmap" && (
-          <Roadmap stages={roadmap} onStageSelect={setSelectedLesson} />
+          <Roadmap
+            roadmap={roadmap}
+            userProfile={userProfile}
+            onStageSelect={(stage, topicBlueprint) =>
+              setSelectedLessonRef({ topicId: topicBlueprint.id, lessonId: stage.id })
+            }
+          />
         )}
         {activeTab === "Chat with Mentor" && (
           <ChatWithMentor userProfile={userProfile} />
@@ -238,8 +261,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {selectedLesson && (
         <LessonModal
-          stage={selectedLesson}
-          onClose={() => setSelectedLesson(null)}
+          stage={selectedLesson.lesson}
+          topicBlueprint={selectedLesson.topicBlueprint}
+          onClose={() => setSelectedLessonRef(null)}
           onComplete={completeLesson}
           loseLife={loseLife}
           userProfile={userProfile}
@@ -249,5 +273,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     </div>
   );
 };
+
 
 export default Dashboard;
